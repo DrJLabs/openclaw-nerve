@@ -76,7 +76,7 @@ describe('MarkdownRenderer', () => {
 
   it('handles empty content', () => {
     const { container } = render(<MarkdownRenderer content="" />);
-    expect(container).toBeTruthy();
+    expect(container.textContent?.trim() || '').toBe('');
   });
 
   it('renders tables', () => {

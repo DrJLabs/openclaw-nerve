@@ -12,16 +12,15 @@ describe('ContextMeter', () => {
 
   it('shows token count', () => {
     const { container } = render(<ContextMeter used={10000} limit={100000} />);
-    // The animated number should be present (may show formatted value like "10K")
-    expect(container.textContent).toContain('CTX');
+    // AnimatedNumber renders the formatted value (e.g. "10K")
+    expect(container.textContent).toMatch(/10/);
   });
 
   it('does not show warning icon at low usage', () => {
     const { container } = render(<ContextMeter used={1000} limit={100000} />);
-    // 1% usage — no warning icon
+    // 1% usage — AlertTriangle SVG should not be present
     const svgs = container.querySelectorAll('svg');
-    // May or may not have SVG depending on lucide rendering; just check it doesn't crash
-    expect(container).toBeTruthy();
+    expect(svgs).toHaveLength(0);
   });
 
   it('renders at zero usage', () => {

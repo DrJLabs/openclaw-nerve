@@ -42,7 +42,7 @@ export class MockGateway {
     this.httpServer = createServer();
     this.wss = new WebSocketServer({ server: this.httpServer });
 
-    this.wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
+    this.wss.on('connection', (ws: WebSocket, _req: IncomingMessage) => {
       this.connections.add(ws);
 
       // Send connect.challenge immediately

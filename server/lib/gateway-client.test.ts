@@ -51,6 +51,7 @@ describe('invokeGatewayTool', () => {
     const opts = callArgs[1] as RequestInit;
     const headers = opts.headers as Record<string, string>;
     expect(headers['Content-Type']).toBe('application/json');
+    expect(headers['Authorization']).toMatch(/^Bearer /);
   });
 
   it('throws on HTTP error response', async () => {

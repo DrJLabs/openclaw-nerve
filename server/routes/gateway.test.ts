@@ -146,7 +146,9 @@ describe('gateway routes', () => {
 
     it('accepts custom sessionKey query param', async () => {
       setDefaults();
-      invokeGatewayImpl = (tool: string) => {
+      const invokedCalls: Array<{ tool: string; args: Record<string, unknown> }> = [];
+      invokeGatewayImpl = (tool: string, args: Record<string, unknown>) => {
+        invokedCalls.push({ tool, args });
         if (tool === 'sessions_list') {
           return {
             sessions: [{
@@ -163,6 +165,8 @@ describe('gateway routes', () => {
       expect(res.status).toBe(200);
       const json = (await res.json()) as Record<string, unknown>;
       expect(json.model).toBe('openai/gpt-4o');
+      // Verify the gateway was invoked with the correct tool
+      expect(invokedCalls.some(c => c.tool === 'sessions_list')).toBe(true);
     });
   });
 

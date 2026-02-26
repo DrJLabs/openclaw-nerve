@@ -41,12 +41,8 @@ describe('mergeRecoveredTail', () => {
 
   it('does not duplicate overlapping messages', () => {
     const ts = 1700000000000;
-    const msg1 = makeMsg('user', 'Hello', ts);
-    const msg2 = makeMsg('assistant', 'Hi', ts + 1000);
-    const msg3 = makeMsg('user', 'Follow up', ts + 2000);
-
-    const existing = [msg1, msg2];
-    const recovered = [msg1, msg2, msg3];
+    const existing = [makeMsg('user', 'Hello', ts), makeMsg('assistant', 'Hi', ts + 1000)];
+    const recovered = [makeMsg('user', 'Hello', ts), makeMsg('assistant', 'Hi', ts + 1000), makeMsg('user', 'Follow up', ts + 2000)];
     const result = mergeRecoveredTail(existing, recovered);
     // Should have 3 messages, not 4 or 5
     expect(result).toHaveLength(3);
@@ -71,6 +67,8 @@ describe('mergeRecoveredTail', () => {
     expect(result.some(m => m.rawText === 'Reply A')).toBe(true);
     expect(result.some(m => m.rawText === 'New reply B (corrected)')).toBe(true);
     expect(result.some(m => m.rawText === 'Message C')).toBe(true);
+    // Old reply should be replaced, not retained
+    expect(result.some(m => m.rawText === 'Old reply B')).toBe(false);
   });
 
   it('falls back to recovered when no overlap or anchor found', () => {

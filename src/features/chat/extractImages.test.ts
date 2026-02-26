@@ -38,12 +38,13 @@ describe('extractImages', () => {
       expect(images[0].alt).toBeUndefined();
     });
 
-    it('handles various image extensions', () => {
-      for (const ext of ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif']) {
+    it.each(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif'])(
+      'handles .%s extension',
+      (ext) => {
         const { images } = extractImages(`![](https://x.com/img.${ext})`);
         expect(images).toHaveLength(1);
-      }
-    });
+      },
+    );
 
     it('handles URLs with query params', () => {
       const { images } = extractImages('![](https://x.com/img.png?w=200&h=100)');
@@ -84,10 +85,9 @@ describe('extractImages', () => {
     });
 
     it('does not extract inline bare URLs', () => {
-      // Bare URL regex matches full lines, inline URLs in text may or may not match
+      // Bare URL regex only matches full-line URLs (^...$), not inline
       const text = 'See https://example.com/photo.jpg for details';
       const { images } = extractImages(text);
-      // Inline URL should NOT be extracted (regex matches ^...$)
       expect(images).toHaveLength(0);
     });
   });

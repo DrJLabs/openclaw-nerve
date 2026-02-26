@@ -218,7 +218,8 @@ describe('extractFinalMessages', () => {
   });
 
   it('creates synthetic message from string content', () => {
-    const result = extractFinalMessages({ state: 'final', message: 'plain text' as unknown as any });
+    const payload = { state: 'final', message: 'plain text' } as Record<string, unknown>;
+    const result = extractFinalMessages(payload);
     expect(result).toHaveLength(1);
     expect(result[0].role).toBe('assistant');
   });

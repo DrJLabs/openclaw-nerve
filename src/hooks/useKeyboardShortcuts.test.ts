@@ -121,11 +121,12 @@ describe('useKeyboardShortcuts', () => {
 
     const input = document.createElement('input');
     document.body.appendChild(input);
-
-    fireKey({ key: 'k', metaKey: true, target: input });
-    expect(handler).not.toHaveBeenCalled();
-
-    document.body.removeChild(input);
+    try {
+      fireKey({ key: 'k', metaKey: true, target: input });
+      expect(handler).not.toHaveBeenCalled();
+    } finally {
+      document.body.removeChild(input);
+    }
   });
 
   it('cleans up event listener on unmount', () => {

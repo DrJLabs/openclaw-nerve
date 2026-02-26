@@ -1,5 +1,6 @@
 /** Tests for server/lib/config.ts — env-driven config, helpers, and banner. */
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import path from 'node:path';
 
 describe('config module', () => {
   const originalEnv = { ...process.env };
@@ -202,17 +203,17 @@ describe('config module', () => {
   describe('paths are absolute', () => {
     it('dist path is absolute', async () => {
       const { config } = await import('./config.js');
-      expect(config.dist.startsWith('/')).toBe(true);
+      expect(path.isAbsolute(config.dist)).toBe(true);
     });
 
     it('memoryPath is absolute', async () => {
       const { config } = await import('./config.js');
-      expect(config.memoryPath.startsWith('/')).toBe(true);
+      expect(path.isAbsolute(config.memoryPath)).toBe(true);
     });
 
     it('sessionsDir is absolute', async () => {
       const { config } = await import('./config.js');
-      expect(config.sessionsDir.startsWith('/')).toBe(true);
+      expect(path.isAbsolute(config.sessionsDir)).toBe(true);
     });
   });
 });

@@ -82,7 +82,7 @@ describe('extractChartMarkers', () => {
   describe('invalid/edge cases', () => {
     it('skips invalid JSON', () => {
       const text = '[chart:{invalid json}]';
-      const { charts, cleaned } = extractChartMarkers(text);
+      const { charts } = extractChartMarkers(text);
       expect(charts).toHaveLength(0);
     });
 

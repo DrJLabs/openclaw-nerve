@@ -1,5 +1,5 @@
 /** Tests for the skills API route (GET /api/skills). */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { Hono } from 'hono';
 
 let execFileImpl: (...args: unknown[]) => void;

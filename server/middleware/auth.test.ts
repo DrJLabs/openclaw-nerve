@@ -1,5 +1,5 @@
 /** Tests for the auth middleware. */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 
 // We need to mock config and verifySession before importing the middleware

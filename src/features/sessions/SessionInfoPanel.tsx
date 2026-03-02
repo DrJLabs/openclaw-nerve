@@ -149,7 +149,7 @@ export const SessionInfoPanel = memo(function SessionInfoPanel({
       onMouseLeave={handleLeave}
     >
       {/* Trigger */}
-      <div className="cursor-default">
+      <div className="cursor-default min-w-0 overflow-hidden">
         {children}
       </div>
 

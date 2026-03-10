@@ -20,7 +20,9 @@ interface UseWebSocketReturn {
 
 const RECONNECT_BASE_DELAY = 1000;
 const RECONNECT_MAX_DELAY = 30000;
-const RECONNECT_MAX_ATTEMPTS = 50; // Give up after ~10 minutes of trying
+// Keep retrying indefinitely. Laptops sleep/wake and network outages can exceed
+// 10 minutes; giving up causes "live updates stalled" until manual reconnect.
+const RECONNECT_MAX_ATTEMPTS = Number.POSITIVE_INFINITY;
 const INSTANCE_ID_STORAGE_KEY = 'oc-webchat-instance-id';
 
 function generateInstanceId(): string {

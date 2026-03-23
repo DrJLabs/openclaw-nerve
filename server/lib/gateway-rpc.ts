@@ -90,8 +90,8 @@ export function gatewayRpcCall(
         method: 'connect',
         params: {
           client: {
-            id: 'nerve-rpc',
-            mode: 'api',
+            id: 'openclaw-control-ui',
+            mode: 'webchat',
             version: '1.0.0',
             platform: process.platform,
           },

@@ -848,6 +848,41 @@ describe('POST /api/kanban/tasks/:id/execute', () => {
     expect(res2.status).toBe(409);
   });
 
+  it('prevents race condition: concurrent execute calls launch only one root session', async () => {
+    const launchMock = vi.fn(async ({ label }: { label: string }) => {
+      // Simulate realistic launch delay
+      await new Promise(resolve => setTimeout(resolve, 50));
+      const normalized = label
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      return {
+        sessionKey: `kanban-root:${normalized}`,
+        runId: undefined,
+      };
+    });
+
+    vi.doMock('../lib/kanban-root-session.js', () => ({
+      launchKanbanRootSessionViaRpc: launchMock,
+    }));
+
+    const app = await buildApp();
+    const task = await createTask(app, { status: 'todo' });
+
+    // Fire two concurrent execute requests
+    const [res1, res2] = await Promise.all([
+      app.request(`/api/kanban/tasks/${task.id}/execute`, json({})),
+      app.request(`/api/kanban/tasks/${task.id}/execute`, json({})),
+    ]);
+
+    // One should succeed, one should be rejected
+    const statuses = [res1.status, res2.status].sort();
+    expect(statuses).toEqual([200, 409]);
+
+    // Most importantly: launch helper should be called exactly once
+    expect(launchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('returns 409 for invalid transition (done task)', async () => {
     const app = await buildApp();
     const task = await createTask(app, { status: 'todo' });

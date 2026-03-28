@@ -26,9 +26,11 @@ import {
   ProposalAlreadyResolvedError,
 } from '../lib/kanban-store.js';
 import { invokeGatewayTool } from '../lib/gateway-client.js';
+import { withMutex } from '../lib/mutex.js';
 import { parseKanbanMarkers, stripKanbanMarkers } from '../lib/parseMarkers.js';
 import { launchKanbanRootSessionViaRpc } from '../lib/kanban-root-session.js';
 import type {
+  KanbanTask,
   TaskStatus,
   TaskPriority,
   TaskActor,
@@ -78,6 +80,14 @@ interface KanbanRunIdentity {
   correlationKey: string;
   runId?: string;
 }
+
+type ExecuteTaskAttempt =
+  | { duplicate: true }
+  | {
+    duplicate: false;
+    task: KanbanTask;
+    launchResult?: { sessionKey: string; runId?: string };
+  };
 
 /** Poll root session state until run finishes, then complete the run. */
 function pollSessionCompletion(
@@ -780,72 +790,89 @@ app.post('/api/kanban/tasks/:id/execute', rateLimitGeneral, async (c) => {
   }
 
   try {
-    // Guard: reject if task is already in-progress (double-click race)
-    const existing = await store.getTask(id);
-    if (existing.status === 'in-progress') {
+    const execution = await withMutex<ExecuteTaskAttempt>(`kanban-execute:${id}`, async () => {
+      // Guard: reject if task is already in-progress (double-click race)
+      const existing = await store.getTask(id);
+      if (existing.status === 'in-progress') {
+        return { duplicate: true } as const;
+      }
+
+      // Use task's model, or board default. If neither is set, omit — OpenClaw
+      // will use whatever default model the operator configured in openclaw.json.
+      const config = await store.getConfig();
+      const model = existing.model || parsed.data.model || config.defaultModel;
+      const thinking = existing.thinking || parsed.data.thinking || config.defaultThinking;
+
+      // Generate label for the root session
+      const label = `kb-${existing.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)}-${Date.now()}`;
+      const taskDescription = existing.description || existing.title;
+
+      // Launch via the new root-session helper and await the sessionKey
+      let launchResult: { sessionKey: string; runId?: string };
+      try {
+        launchResult = await launchKanbanRootSessionViaRpc({
+          label,
+          task: `You are working on a Kanban task.\n\nTitle: ${existing.title}\n\nDescription: ${taskDescription}\n\nDeliver your result as a clear summary of what was done.`,
+          model,
+          thinking,
+        });
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        console.error(`[kanban] Failed to launch root session for task ${id}:`, err);
+        // Generate a temporary sessionKey for the failed run
+        const failedSessionKey = `kb-failed-${Date.now()}`;
+        await store.executeTask(
+          id,
+          { ...parsed.data, sessionKey: failedSessionKey },
+          'operator',
+        );
+        const failedTask = await store.completeRun(id, failedSessionKey, undefined, `Spawn failed: ${errorMessage}`);
+        return {
+          duplicate: false,
+          task: failedTask,
+        } as const;
+      }
+
+      // Call executeTask with the root sessionKey from the helper
+      const task = await store.executeTask(
+        id,
+        { ...parsed.data, sessionKey: launchResult.sessionKey },
+        'operator',
+      );
+
+      return {
+        duplicate: false,
+        task,
+        launchResult,
+      } as const;
+    });
+
+    if (execution.duplicate) {
       return c.json({ error: 'duplicate_execution', details: 'Task is already being executed' }, 409);
     }
 
-    // Use task's model, or board default. If neither is set, omit — OpenClaw
-    // will use whatever default model the operator configured in openclaw.json.
-    const config = await store.getConfig();
-    const model = existing.model || parsed.data.model || config.defaultModel;
-    const thinking = existing.thinking || parsed.data.thinking || config.defaultThinking;
+    // Fire-and-forget: attach runId if returned, then poll for completion
+    if (execution.launchResult) {
+      (async () => {
+        try {
+          if (execution.launchResult.runId) {
+            await store.attachRunIdentifiers(id, execution.launchResult.sessionKey, {
+              runId: execution.launchResult.runId,
+            });
+          }
 
-    // Generate label for the root session
-    const label = `kb-${existing.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)}-${Date.now()}`;
-    const taskDescription = existing.description || existing.title;
-
-    // Launch via the new root-session helper and await the sessionKey
-    let launchResult: { sessionKey: string; runId?: string };
-    try {
-      launchResult = await launchKanbanRootSessionViaRpc({
-        label,
-        task: `You are working on a Kanban task.\n\nTitle: ${existing.title}\n\nDescription: ${taskDescription}\n\nDeliver your result as a clear summary of what was done.`,
-        model,
-        thinking,
-      });
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      console.error(`[kanban] Failed to launch root session for task ${id}:`, err);
-      // Generate a temporary sessionKey for the failed run
-      const failedSessionKey = `kb-failed-${Date.now()}`;
-      await store.executeTask(
-        id,
-        { ...parsed.data, sessionKey: failedSessionKey },
-        'operator',
-      );
-      const failedTask = await store.completeRun(id, failedSessionKey, undefined, `Spawn failed: ${errorMessage}`);
-      return c.json(failedTask);
+          // Poll for session completion in the background
+          pollSessionCompletion(store, id, {
+            correlationKey: execution.launchResult.sessionKey,
+            runId: execution.launchResult.runId,
+          });
+        } catch (err) {
+          console.error(`[kanban] Failed to attach run metadata for task ${id}:`, err);
+        }
+      })();
     }
 
-    // Call executeTask with the root sessionKey from the helper
-    const task = await store.executeTask(
-      id,
-      { ...parsed.data, sessionKey: launchResult.sessionKey },
-      'operator',
-    );
-
-    // Fire-and-forget: attach runId if returned, then poll for completion
-    (async () => {
-      try {
-        if (launchResult.runId) {
-          await store.attachRunIdentifiers(id, launchResult.sessionKey, {
-            runId: launchResult.runId,
-          });
-        }
-
-        // Poll for session completion in the background
-        pollSessionCompletion(store, id, {
-          correlationKey: launchResult.sessionKey,
-          runId: launchResult.runId,
-        });
-      } catch (err) {
-        console.error(`[kanban] Failed to attach run metadata for task ${id}:`, err);
-      }
-    })();
-
-    return c.json(task);
+    return c.json(execution.task);
   } catch (err) {
     return handleWorkflowError(c, err);
   }

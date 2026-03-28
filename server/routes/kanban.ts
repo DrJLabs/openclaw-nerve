@@ -842,11 +842,9 @@ app.post('/api/kanban/tasks/:id/execute', rateLimitGeneral, async (c) => {
       .then(async (spawnResult) => {
         // Normalize sessionId alias into childSessionKey for consistency
         const childSessionKey = spawnResult.childSessionKey ?? spawnResult.sessionId;
-        const sessionId = spawnResult.sessionId ?? spawnResult.childSessionKey;
 
         const linkedTask = await store.attachRunIdentifiers(id, runSessionKey, {
           childSessionKey,
-          sessionId,
         });
         if (!linkedTask) {
           console.warn(`[kanban] Spawned run metadata arrived after task ${id} moved on from run ${runSessionKey}`);

@@ -27,7 +27,7 @@ import {
 } from '../lib/kanban-store.js';
 import { invokeGatewayTool } from '../lib/gateway-client.js';
 import { parseKanbanMarkers, stripKanbanMarkers } from '../lib/parseMarkers.js';
-import { spawnKanbanWorkerViaRpc } from '../lib/kanban-worker-spawn.js';
+import { launchKanbanRootSessionViaRpc } from '../lib/kanban-root-session.js';
 import type {
   TaskStatus,
   TaskPriority,
@@ -818,51 +818,58 @@ app.post('/api/kanban/tasks/:id/execute', rateLimitGeneral, async (c) => {
       return c.json({ error: 'duplicate_execution', details: 'Task is already being executed' }, 409);
     }
 
-    const task = await store.executeTask(id, parsed.data, 'operator');
-
-    // Spawn agent session via RPC helper (fire-and-forget)
-    const taskDescription = task.description || task.title;
-    const runSessionKey = task.run?.sessionKey;
-    if (!runSessionKey) {
-      throw new Error(`executeTask did not produce a run session key for task ${id}`);
-    }
-
     // Use task's model, or board default. If neither is set, omit — OpenClaw
     // will use whatever default model the operator configured in openclaw.json.
     const config = await store.getConfig();
-    const model = task.model || config.defaultModel;
-    const thinking = task.thinking || config.defaultThinking;
+    const model = existing.model || parsed.data.model || config.defaultModel;
+    const thinking = existing.thinking || parsed.data.thinking || config.defaultThinking;
 
-    spawnKanbanWorkerViaRpc({
-      label: runSessionKey,
-      task: `You are working on a Kanban task.\n\nTitle: ${task.title}\n\nDescription: ${taskDescription}\n\nDeliver your result as a clear summary of what was done.`,
-      model,
-      thinking,
-    })
-      .then(async (spawnResult) => {
-        // Normalize sessionId alias into childSessionKey for consistency
-        const childSessionKey = spawnResult.childSessionKey ?? spawnResult.sessionId;
+    // Generate label for the root session
+    const label = `kb-${existing.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)}-${Date.now()}`;
+    const taskDescription = existing.description || existing.title;
 
-        const linkedTask = await store.attachRunIdentifiers(id, runSessionKey, {
-          childSessionKey,
-        });
-        if (!linkedTask) {
-          console.warn(`[kanban] Spawned run metadata arrived after task ${id} moved on from run ${runSessionKey}`);
-          return;
+    // Launch via the new root-session helper and await the sessionKey
+    let launchResult: { sessionKey: string; runId?: string };
+    try {
+      launchResult = await launchKanbanRootSessionViaRpc({
+        label,
+        task: `You are working on a Kanban task.\n\nTitle: ${existing.title}\n\nDescription: ${taskDescription}\n\nDeliver your result as a clear summary of what was done.`,
+        model,
+        thinking,
+      });
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error(`[kanban] Failed to launch root session for task ${id}:`, err);
+      // Generate a temporary sessionKey for the failed run
+      const failedSessionKey = `kb-failed-${Date.now()}`;
+      const task = await store.executeTask(id, parsed.data, 'operator', { sessionKey: failedSessionKey });
+      await store.completeRun(id, failedSessionKey, undefined, `Spawn failed: ${errorMessage}`);
+      return c.json(task);
+    }
+
+    // Call executeTask with the root sessionKey from the helper
+    const task = await store.executeTask(id, parsed.data, 'operator', {
+      sessionKey: launchResult.sessionKey,
+    });
+
+    // Fire-and-forget: attach runId if returned, then poll for completion
+    (async () => {
+      try {
+        if (launchResult.runId) {
+          await store.attachRunIdentifiers(id, launchResult.sessionKey, {
+            runId: launchResult.runId,
+          });
         }
 
-        // Poll for session completion in the background, preferring the stable
-        // spawned identifiers before falling back to the human-readable label.
+        // Poll for session completion in the background
         pollSessionCompletion(store, id, {
-          correlationKey: runSessionKey,
-          childSessionKey: linkedTask.run?.childSessionKey ?? childSessionKey,
-          runId: linkedTask.run?.runId,
+          correlationKey: launchResult.sessionKey,
+          runId: launchResult.runId,
         });
-      })
-      .catch((err) => {
-        console.error(`[kanban] Failed to spawn session for task ${id}:`, err);
-        store.completeRun(id, runSessionKey, undefined, `Spawn failed: ${err.message}`).catch(() => {});
-      });
+      } catch (err) {
+        console.error(`[kanban] Failed to attach run metadata for task ${id}:`, err);
+      }
+    })();
 
     return c.json(task);
   } catch (err) {

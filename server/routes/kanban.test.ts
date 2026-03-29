@@ -878,6 +878,43 @@ describe('POST /api/kanban/tasks/:id/execute', () => {
     expect(body.thinking).toBe('high');
   });
 
+  it('keeps stored execution settings aligned with the launched root session', async () => {
+    let launchArgs: { model?: string; thinking?: string } | undefined;
+
+    vi.doMock('../lib/kanban-root-session.js', () => ({
+      buildKanbanRootSessionKey: buildMockRootSessionKey,
+      launchKanbanRootSessionViaRpc: vi.fn(async ({ label, model, thinking }: {
+        label: string;
+        model?: string;
+        thinking?: string;
+      }) => {
+        launchArgs = { model, thinking };
+        return {
+          sessionKey: buildMockRootSessionKey(label),
+          runId: 'run-123',
+        };
+      }),
+    }));
+
+    const app = await buildApp();
+    const task = await createTask(app, {
+      status: 'todo',
+      model: 'task-model',
+      thinking: 'low',
+    });
+
+    const res = await app.request(`/api/kanban/tasks/${task.id}/execute`, json({
+      model: 'request-model',
+      thinking: 'high',
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json() as KanbanTask;
+
+    expect(launchArgs).toBeDefined();
+    expect(body.model).toBe(launchArgs?.model);
+    expect(body.thinking).toBe(launchArgs?.thinking);
+  });
+
   it('rejects duplicate execution of already-running task', async () => {
     const app = await buildApp();
     const task = await createTask(app, { status: 'todo' });
@@ -887,6 +924,27 @@ describe('POST /api/kanban/tasks/:id/execute', () => {
 
     const res2 = await app.request(`/api/kanban/tasks/${task.id}/execute`, json({}));
     expect(res2.status).toBe(409);
+  });
+
+  it('uses a fresh root session key when the same task is rerun under the same clock tick', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1_716_710_400_000);
+
+    const app = await buildApp();
+    const task = await createTask(app, { status: 'todo', title: 'Same title' });
+
+    const run1Res = await app.request(`/api/kanban/tasks/${task.id}/execute`, json({}));
+    expect(run1Res.status).toBe(200);
+    const run1 = await run1Res.json() as KanbanTask;
+
+    const abortRes = await app.request(`/api/kanban/tasks/${task.id}/abort`, json({ note: 'rerun' }));
+    expect(abortRes.status).toBe(200);
+
+    const run2Res = await app.request(`/api/kanban/tasks/${task.id}/execute`, json({}));
+    expect(run2Res.status).toBe(200);
+    const run2 = await run2Res.json() as KanbanTask;
+
+    expect(run2.run?.sessionKey).toBeTruthy();
+    expect(run2.run?.sessionKey).not.toBe(run1.run?.sessionKey);
   });
 
   it('prevents race condition: concurrent execute calls launch only one root session', async () => {
@@ -1782,7 +1840,59 @@ describe('POST /api/kanban/tasks/:id/complete — run key integrity', () => {
     expect(proposals.proposals.find((proposal) => proposal.payload.title === 'proposal from root session')).toBeDefined();
   });
 
+  it('treats terminal failed sessions as errors even when they are idle', async () => {
+    let rootSessionKey = '';
 
+    const invokeGatewayToolMock = vi.fn(async (tool: string) => {
+      if (tool === 'sessions_list') {
+        return {
+          sessions: [
+            {
+              sessionKey: rootSessionKey,
+              status: 'failed',
+              error: 'Worker crashed',
+              agentState: 'idle',
+              busy: false,
+              processing: false,
+            },
+          ].filter((session) => session.sessionKey),
+        };
+      }
+      if (tool === 'sessions_history') {
+        return {
+          messages: [
+            {
+              role: 'assistant',
+              content: 'should not be read',
+            },
+          ],
+        };
+      }
+      return {};
+    });
+
+    const app = await buildApp({ invokeGatewayToolMock });
+    const task = await createTask(app, { status: 'todo', title: 'Failed task' });
+
+    const execRes = await app.request(`/api/kanban/tasks/${task.id}/execute`, json({}));
+    expect(execRes.status).toBe(200);
+    const running = await execRes.json() as KanbanTask;
+    rootSessionKey = running.run!.sessionKey;
+
+    await new Promise((resolve) => setTimeout(resolve, 3_200));
+
+    expect(invokeGatewayToolMock).not.toHaveBeenCalledWith('sessions_history', {
+      sessionKey: rootSessionKey,
+      limit: 3,
+    });
+
+    const tasksRes = await app.request('/api/kanban/tasks');
+    const tasks = await tasksRes.json() as { items: KanbanTask[] };
+    const failed = tasks.items.find((item) => item.id === task.id);
+    expect(failed?.status).toBe('todo');
+    expect(failed?.run?.status).toBe('error');
+    expect(failed?.run?.error).toBe('Worker crashed');
+  });
 
   it('ignores late stale poller completion from run 1 after run 2 is active', async () => {
     vi.useFakeTimers();

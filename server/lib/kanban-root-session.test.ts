@@ -45,6 +45,27 @@ describe('launchKanbanRootSessionViaRpc', () => {
     expect(calls[1].method).toBe('chat.send');
   });
 
+  it('aborts before chat.send when sessions.patch fails', async () => {
+    vi.spyOn(gatewayRpc, 'gatewayRpcCall').mockImplementation(async (method, params) => {
+      calls.push({ method, params });
+      if (method === 'sessions.patch') {
+        throw new Error('sessions.patch failed');
+      }
+      if (method === 'chat.send') {
+        return { ok: true, runId: 'should-not-happen' };
+      }
+      return {};
+    });
+
+    await expect(launchKanbanRootSessionViaRpc({
+      label: 'test-kanban-run',
+      task: 'Execute kanban task',
+    })).rejects.toThrow('sessions.patch failed');
+
+    expect(calls.some((call) => call.method === 'sessions.patch')).toBe(true);
+    expect(calls.some((call) => call.method === 'chat.send')).toBe(false);
+  });
+
   // ── Test 2: chat.send uses deliver: false ───────────────────────────
 
   it('calls chat.send with deliver: false', async () => {

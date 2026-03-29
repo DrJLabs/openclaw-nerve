@@ -150,6 +150,14 @@ function pollSessionCompletion(
         return;
       }
 
+      // Terminal session states must win over idle heuristics.
+      const status = session.status as string | undefined;
+      if (status === 'error' || status === 'failed') {
+        const errorMsg = (session.error as string) || 'Session failed';
+        await store.completeRun(taskId, identity.correlationKey, undefined, errorMsg).catch(() => {});
+        return;
+      }
+
       // Check if session is idle (done processing)
       const agentState = session.agentState as string | undefined;
       const busy = session.busy as boolean | undefined;
@@ -204,14 +212,6 @@ function pollSessionCompletion(
             console.warn(`[kanban] Failed to create proposal from marker:`, err);
           }
         }
-        return;
-      }
-
-      // Session still active -- check for errors
-      const status = session.status as string | undefined;
-      if (status === 'error' || status === 'failed') {
-        const errorMsg = (session.error as string) || 'Session failed';
-        await store.completeRun(taskId, identity.correlationKey, undefined, errorMsg).catch(() => {});
         return;
       }
 
@@ -820,15 +820,22 @@ app.post('/api/kanban/tasks/:id/execute', rateLimitGeneral, async (c) => {
       const config = await store.getConfig();
       const model = existing.model || parsed.data.model || config.defaultModel;
       const thinking = existing.thinking || parsed.data.thinking || config.defaultThinking;
+      const persistedModel = existing.model || parsed.data.model;
+      const persistedThinking = existing.thinking || parsed.data.thinking;
 
-      const label = `kb-${existing.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)}-${Date.now()}`;
+      const titleSlug = existing.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'task';
+      const label = `kb-${titleSlug}-${existing.id}-v${existing.version + 1}-${Date.now()}`;
       const sessionKey = buildKanbanRootSessionKey(label);
       const taskDescription = existing.description || existing.title;
       const prompt = `You are working on a Kanban task.\n\nTitle: ${existing.title}\n\nDescription: ${taskDescription}\n\nDeliver your result as a clear summary of what was done.`;
 
       const task = await store.executeTask(
         id,
-        { ...parsed.data, sessionKey },
+        {
+          sessionKey,
+          model: persistedModel,
+          thinking: persistedThinking,
+        },
         'operator',
       );
 

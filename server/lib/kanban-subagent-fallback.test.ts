@@ -159,6 +159,7 @@ describe('resolveKanbanFallbackParentSessionKey', () => {
   });
 
   it('normalizes full agent-flavored values back to the owning top-level root', () => {
+    expect(resolveKanbanFallbackParentSessionKey('agent:reviewer:main')).toBe('agent:reviewer:main');
     expect(resolveKanbanFallbackParentSessionKey('agent:reviewer:subagent:child')).toBe('agent:reviewer:main');
   });
 

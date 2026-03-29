@@ -12,6 +12,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import { resolveKanbanAssigneeRootSessionKey } from './kanban-assignee.js';
 import { gatewayRpcCall } from './gateway-rpc.js';
 
 const SESSIONS_ACTIVE_MINUTES = 24 * 60;
@@ -51,11 +52,7 @@ export function buildKanbanFallbackRunKey(label: string): string {
 
 /** Resolve the owning top-level worker root session for a task assignee. */
 export function resolveKanbanFallbackParentSessionKey(assignee?: string): string | null {
-  if (!assignee || assignee === 'operator') return null;
-  const match = assignee.match(/^agent:([^:]+)/);
-  if (!match) return null;
-  if (match[1] === 'main') return null;
-  return `agent:${match[1]}:main`;
+  return resolveKanbanAssigneeRootSessionKey(assignee);
 }
 
 function getSessionKey(session: GatewaySessionSummary): string | null {

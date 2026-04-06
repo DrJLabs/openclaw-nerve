@@ -59,15 +59,13 @@ export function MarkdownDocumentView({
       </div>
 
       {mode === 'preview' ? (
-        <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 md:px-6">
-          <article className="markdown-document mx-auto max-w-4xl rounded-[24px] border border-border/60 bg-card/55 px-5 py-4 shadow-[0_18px_48px_rgba(0,0,0,0.16)] md:px-8 md:py-6">
-            <MarkdownRenderer
-              content={previewContent}
-              className="markdown-document-content"
-              currentDocumentPath={file.path}
-              onOpenWorkspacePath={(targetPath, basePath) => onOpenWorkspacePath?.(targetPath, basePath ?? file.path)}
-            />
-          </article>
+        <div className="flex-1 min-h-0 overflow-y-auto py-4">
+          <MarkdownRenderer
+            content={previewContent}
+            className="markdown-document-content"
+            currentDocumentPath={file.path}
+            onOpenWorkspacePath={(targetPath, basePath) => onOpenWorkspacePath?.(targetPath, basePath ?? file.path)}
+          />
         </div>
       ) : (
         <div className="flex-1 min-h-0">

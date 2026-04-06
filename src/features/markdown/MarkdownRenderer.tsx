@@ -145,7 +145,7 @@ export function MarkdownRenderer({ content, className = '', searchQuery, suppres
 
     const escapedAnchorId = typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
       ? CSS.escape(anchorId)
-      : anchorId.replace(/([ #;?%&,.+*~\':"!^$\[\]()=>|/@])/g, '\\$1');
+      : anchorId.replace(/([ #;?%&,.+*~':"!^$[\]()=>|/@])/g, '\\$1');
 
     const target = root.querySelector<HTMLElement>(`#${escapedAnchorId}, a[name="${escapedAnchorId}"]`);
     if (!target) return;

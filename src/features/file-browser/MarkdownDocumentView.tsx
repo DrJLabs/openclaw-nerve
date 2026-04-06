@@ -34,23 +34,43 @@ export function MarkdownDocumentView({
           </div>
           <div className="truncate text-[0.8rem] text-foreground/90">{file.path}</div>
         </div>
-        <div className="flex items-center gap-1 rounded-xl border border-border/70 bg-background/55 p-1">
+        <div
+          className="inline-flex items-center rounded-xl border border-border/70 bg-background/55 p-1"
+          role="tablist"
+          aria-label="Document mode"
+        >
           <button
             type="button"
-            className="cockpit-toolbar-button min-h-8 px-3 text-[0.733rem]"
+            role="tab"
+            id="markdown-document-tab-preview"
+            aria-selected={mode === 'preview'}
+            aria-controls="markdown-document-panel-preview"
+            tabIndex={mode === 'preview' ? 0 : -1}
+            className={`inline-flex min-h-8 items-center gap-2 rounded-[10px] px-3 text-[0.733rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+              mode === 'preview'
+                ? 'bg-card text-foreground shadow-[0_10px_30px_rgba(0,0,0,0.12)]'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
             data-active={mode === 'preview'}
             onClick={() => setMode('preview')}
-            aria-pressed={mode === 'preview'}
           >
             <Eye size={14} />
             Preview
           </button>
           <button
             type="button"
-            className="cockpit-toolbar-button min-h-8 px-3 text-[0.733rem]"
+            role="tab"
+            id="markdown-document-tab-edit"
+            aria-selected={mode === 'edit'}
+            aria-controls="markdown-document-panel-edit"
+            tabIndex={mode === 'edit' ? 0 : -1}
+            className={`inline-flex min-h-8 items-center gap-2 rounded-[10px] px-3 text-[0.733rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+              mode === 'edit'
+                ? 'bg-card text-foreground shadow-[0_10px_30px_rgba(0,0,0,0.12)]'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
             data-active={mode === 'edit'}
             onClick={() => setMode('edit')}
-            aria-pressed={mode === 'edit'}
           >
             <PencilLine size={14} />
             Edit
@@ -59,7 +79,12 @@ export function MarkdownDocumentView({
       </div>
 
       {mode === 'preview' ? (
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 md:px-6">
+        <div
+          className="flex-1 min-h-0 overflow-y-auto px-4 py-4 md:px-6"
+          role="tabpanel"
+          id="markdown-document-panel-preview"
+          aria-labelledby="markdown-document-tab-preview"
+        >
           <MarkdownRenderer
             content={previewContent}
             className="markdown-document-content"
@@ -68,7 +93,12 @@ export function MarkdownDocumentView({
           />
         </div>
       ) : (
-        <div className="flex-1 min-h-0">
+        <div
+          className="flex-1 min-h-0"
+          role="tabpanel"
+          id="markdown-document-panel-edit"
+          aria-labelledby="markdown-document-tab-edit"
+        >
           <FileEditor
             file={file}
             onContentChange={onContentChange}

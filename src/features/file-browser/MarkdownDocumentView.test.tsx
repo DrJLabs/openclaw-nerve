@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { MarkdownDocumentView } from './MarkdownDocumentView';
 import type { OpenFile } from './types';
@@ -39,5 +39,31 @@ describe('MarkdownDocumentView', () => {
     expect(renderer.closest('article')).toBeNull();
     expect(renderer.parentElement).toHaveClass('px-4');
     expect(renderer.parentElement).toHaveClass('md:px-6');
+  });
+
+  it('uses a segmented mode switcher to toggle between preview and edit', () => {
+    render(
+      <MarkdownDocumentView
+        file={file}
+        onContentChange={vi.fn()}
+        onSave={vi.fn()}
+        onRetry={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('tablist', { name: 'Document mode' })).toBeInTheDocument();
+
+    const previewTab = screen.getByRole('tab', { name: 'Preview' });
+    const editTab = screen.getByRole('tab', { name: 'Edit' });
+
+    expect(previewTab).toHaveAttribute('aria-selected', 'true');
+    expect(editTab).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByTestId('markdown-renderer')).toBeInTheDocument();
+
+    fireEvent.click(editTab);
+
+    expect(editTab).toHaveAttribute('aria-selected', 'true');
+    expect(previewTab).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByTestId('file-editor')).toBeInTheDocument();
   });
 });

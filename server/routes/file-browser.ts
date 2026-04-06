@@ -286,6 +286,7 @@ app.get('/api/files/tree', async (c) => {
 
 app.get('/api/files/resolve', async (c) => {
   const targetPath = c.req.query('path');
+  const relativeTo = c.req.query('relativeTo');
   if (!targetPath) {
     return c.json({ ok: false, error: 'Missing path parameter' }, 400);
   }
@@ -301,10 +302,22 @@ app.get('/api/files/resolve', async (c) => {
     return c.json({ ok: false, error: 'Not supported for remote workspaces', code: 'REMOTE_WORKSPACE' }, 501);
   }
 
-  const normalizedTargetPath = normalizeWorkspaceLookupPath(targetPath);
+  const rawTargetPath = targetPath.trim().replace(/\\/g, '/');
+  const normalizedTargetPath = normalizeWorkspaceLookupPath(rawTargetPath);
+  const workspaceRelativePath = (() => {
+    if (!relativeTo) return normalizedTargetPath;
+    if (rawTargetPath === '/workspace' || rawTargetPath === '/workspace/') return '.';
+    if (rawTargetPath.startsWith('/workspace/')) return rawTargetPath.slice('/workspace/'.length);
+    if (rawTargetPath.startsWith('/')) return rawTargetPath.replace(/^\/+/, '');
+
+    const normalizedRelativeTo = normalizeWorkspaceLookupPath(relativeTo.replace(/\\/g, '/')).replace(/^\/+/, '');
+    const relativeDir = path.posix.dirname(normalizedRelativeTo);
+    return path.posix.normalize(path.posix.join(relativeDir === '.' ? '' : relativeDir, normalizedTargetPath));
+  })();
+
   const resolved = await resolveWorkspacePathForRoot(
     workspace.workspaceRoot,
-    normalizedTargetPath,
+    workspaceRelativePath,
     { allowNonExistent: true },
   );
   if (!resolved) {

@@ -139,7 +139,7 @@ describe('MarkdownRenderer', () => {
     expect(onOpenWorkspacePath).toHaveBeenCalledWith('../advanced.md', 'docs/guide/index.md');
   });
 
-  it('normalizes leading-slash workspace links for markdown documents', () => {
+  it('preserves leading-slash workspace links for markdown documents', () => {
     const onOpenWorkspacePath = vi.fn();
     render(
       <MarkdownRenderer
@@ -151,7 +151,7 @@ describe('MarkdownRenderer', () => {
 
     fireEvent.click(screen.getByRole('link', { name: 'todo' }));
 
-    expect(onOpenWorkspacePath).toHaveBeenCalledWith('docs/todo.md', 'notes/index.md');
+    expect(onOpenWorkspacePath).toHaveBeenCalledWith('/docs/todo.md', 'notes/index.md');
   });
 
   it('adds stable ids to headings for same-document anchor navigation', () => {
@@ -160,31 +160,60 @@ describe('MarkdownRenderer', () => {
     expect(document.querySelector('h2#external-links')).toBeTruthy();
   });
 
+  it('keeps heading ids stable across rerenders', () => {
+    const { rerender } = render(<MarkdownRenderer content={'## Intro\n\n## Intro'} />);
+
+    expect(document.getElementById('intro')).toBeTruthy();
+    expect(document.getElementById('intro-1')).toBeTruthy();
+
+    rerender(<MarkdownRenderer content={'## Intro\n\n## Intro'} />);
+
+    expect(document.getElementById('intro')).toBeTruthy();
+    expect(document.getElementById('intro-1')).toBeTruthy();
+    expect(document.getElementById('intro-2')).toBeNull();
+  });
+
+  it('keeps non-ascii headings addressable', () => {
+    render(<MarkdownRenderer content={'## 日本語'} />);
+
+    expect(document.getElementById('日本語')).toBeTruthy();
+  });
+
   it('handles same-document anchor links in-app instead of opening a new tab', () => {
     const onOpenWorkspacePath = vi.fn();
     const scrollIntoView = vi.fn();
     const replaceState = vi.spyOn(window.history, 'replaceState').mockImplementation(() => undefined);
+    const originalScrollIntoView = Object.getOwnPropertyDescriptor(window.HTMLElement.prototype, 'scrollIntoView');
 
     Object.defineProperty(window.HTMLElement.prototype, 'scrollIntoView', {
       configurable: true,
       value: scrollIntoView,
     });
 
-    render(
-      <MarkdownRenderer
-        content={'[Jump](#external-links)\n\n## External Links'}
-        onOpenWorkspacePath={onOpenWorkspacePath}
-      />,
-    );
+    try {
+      render(
+        <MarkdownRenderer
+          content={'[Jump](#external-links)\n\n## External Links'}
+          onOpenWorkspacePath={onOpenWorkspacePath}
+        />,
+      );
 
-    const link = screen.getByRole('link', { name: 'Jump' });
-    expect(link).not.toHaveAttribute('target', '_blank');
+      const link = screen.getByRole('link', { name: 'Jump' });
+      expect(link).not.toHaveAttribute('target', '_blank');
 
-    fireEvent.click(link);
+      fireEvent.click(link);
 
-    expect(scrollIntoView).toHaveBeenCalledTimes(1);
-    expect(replaceState).toHaveBeenCalledWith(null, '', '#external-links');
-    expect(onOpenWorkspacePath).not.toHaveBeenCalled();
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+      expect(replaceState).toHaveBeenCalledWith(null, '', '#external-links');
+      expect(onOpenWorkspacePath).not.toHaveBeenCalled();
+    } finally {
+      if (originalScrollIntoView) {
+        Object.defineProperty(window.HTMLElement.prototype, 'scrollIntoView', originalScrollIntoView);
+      } else {
+        delete (window.HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+      }
+      replaceState.mockRestore();
+    }
   });
 
   it('logs and swallows rejected markdown workspace link opens', async () => {

@@ -23,7 +23,7 @@ function slugifyHeadingText(text: string): string {
     .toLowerCase()
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '');
@@ -117,14 +117,7 @@ function decodeWorkspacePathLink(href: string): string {
 }
 
 function normalizeWorkspaceLinkTarget(href: string): string {
-  const decoded = decodeWorkspacePathLink(href).trim();
-  if (!decoded) return decoded;
-
-  if (decoded.startsWith('/')) {
-    return decoded.replace(/^\/+/, '');
-  }
-
-  return decoded;
+  return decodeWorkspacePathLink(href).trim();
 }
 
 function CodeBlock({ code, language, highlightedHtml }: {
@@ -188,15 +181,15 @@ export function MarkdownRenderer({
     }
   }, []);
 
-  const components = useMemo(() => {
-    const headingSlugCounts = new Map<string, number>();
-    const buildHeadingId = (children: React.ReactNode) => {
-      const baseSlug = slugifyHeadingText(collectText(children));
-      const seenCount = headingSlugCounts.get(baseSlug) ?? 0;
-      headingSlugCounts.set(baseSlug, seenCount + 1);
-      return seenCount === 0 ? baseSlug : `${baseSlug}-${seenCount}`;
-    };
+  const headingSlugCounts = new Map<string, number>();
+  const buildHeadingId = (children: React.ReactNode) => {
+    const baseSlug = slugifyHeadingText(collectText(children));
+    const seenCount = headingSlugCounts.get(baseSlug) ?? 0;
+    headingSlugCounts.set(baseSlug, seenCount + 1);
+    return seenCount === 0 ? baseSlug : `${baseSlug}-${seenCount}`;
+  };
 
+  const components = useMemo(() => {
     const createHeading = (Tag: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6') =>
       ({ children }: { children?: React.ReactNode }) => {
         const id = buildHeadingId(children);
@@ -303,7 +296,7 @@ export function MarkdownRenderer({
       },
       ...(suppressImages ? { img: () => null } : {}),
     };
-  }, [childOptions, currentDocumentPath, onOpenWorkspacePath, scrollToAnchor, suppressImages]);
+  }, [buildHeadingId, childOptions, currentDocumentPath, onOpenWorkspacePath, scrollToAnchor, suppressImages]);
 
   return (
     <div ref={containerRef} className={`markdown-content ${className}`}>

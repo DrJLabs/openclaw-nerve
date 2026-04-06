@@ -162,6 +162,18 @@ describe('file-browser routes', () => {
       expect(json).toEqual({ ok: true, path: 'src/main.ts', type: 'file', binary: false });
     });
 
+    it('keeps /workspace-prefixed links rooted even when relativeTo is provided', async () => {
+      await fs.mkdir(path.join(tmpDir, 'src'));
+      await fs.mkdir(path.join(tmpDir, 'notes'));
+      await fs.writeFile(path.join(tmpDir, 'src', 'main.ts'), 'export {};');
+      const app = await buildApp();
+
+      const res = await app.request('/api/files/resolve?path=%2Fworkspace%2Fsrc%2Fmain.ts&relativeTo=notes/index.md');
+      expect(res.status).toBe(200);
+      const json = (await res.json()) as { ok: boolean; path: string; type: string; binary: boolean };
+      expect(json).toEqual({ ok: true, path: 'src/main.ts', type: 'file', binary: false });
+    });
+
     it('returns 403 for invalid or excluded targets', async () => {
       const app = await buildApp();
       const res = await app.request('/api/files/resolve?path=../../etc');

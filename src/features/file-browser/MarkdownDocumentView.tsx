@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Eye, PencilLine } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, Eye, Loader2, PencilLine, RotateCw } from 'lucide-react';
 import { MarkdownRenderer } from '@/features/markdown/MarkdownRenderer';
 import type { OpenFile } from './types';
 import { FileEditor } from './FileEditor';
@@ -21,10 +21,6 @@ export function MarkdownDocumentView({
 }: MarkdownDocumentViewProps) {
   const [mode, setMode] = useState<'preview' | 'edit'>('preview');
 
-  const previewContent = useMemo(() => (
-    file.loading || file.error ? '' : file.content
-  ), [file.content, file.error, file.loading]);
-
   return (
     <div className="h-full flex flex-col min-h-0 bg-background/20">
       <div className="flex items-center justify-between gap-3 border-b border-border/60 px-3 py-2 shrink-0 bg-card/55">
@@ -34,18 +30,10 @@ export function MarkdownDocumentView({
           </div>
           <div className="truncate text-[0.8rem] text-foreground/90">{file.path}</div>
         </div>
-        <div
-          className="inline-flex items-center rounded-xl border border-border/70 bg-background/55 p-1"
-          role="tablist"
-          aria-label="Document mode"
-        >
+        <div className="inline-flex items-center rounded-xl border border-border/70 bg-background/55 p-1" role="group" aria-label="Document mode">
           <button
             type="button"
-            role="tab"
-            id="markdown-document-tab-preview"
-            aria-selected={mode === 'preview'}
-            aria-controls="markdown-document-panel-preview"
-            tabIndex={mode === 'preview' ? 0 : -1}
+            aria-pressed={mode === 'preview'}
             className={`inline-flex min-h-8 items-center gap-2 rounded-[10px] px-3 text-[0.733rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
               mode === 'preview'
                 ? 'bg-card text-foreground shadow-[0_10px_30px_rgba(0,0,0,0.12)]'
@@ -59,11 +47,7 @@ export function MarkdownDocumentView({
           </button>
           <button
             type="button"
-            role="tab"
-            id="markdown-document-tab-edit"
-            aria-selected={mode === 'edit'}
-            aria-controls="markdown-document-panel-edit"
-            tabIndex={mode === 'edit' ? 0 : -1}
+            aria-pressed={mode === 'edit'}
             className={`inline-flex min-h-8 items-center gap-2 rounded-[10px] px-3 text-[0.733rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
               mode === 'edit'
                 ? 'bg-card text-foreground shadow-[0_10px_30px_rgba(0,0,0,0.12)]'
@@ -79,26 +63,39 @@ export function MarkdownDocumentView({
       </div>
 
       {mode === 'preview' ? (
-        <div
-          className="flex-1 min-h-0 overflow-y-auto px-4 py-4 md:px-6"
-          role="tabpanel"
-          id="markdown-document-panel-preview"
-          aria-labelledby="markdown-document-tab-preview"
-        >
-          <MarkdownRenderer
-            content={previewContent}
-            className="markdown-document-content"
-            currentDocumentPath={file.path}
-            onOpenWorkspacePath={(targetPath, basePath) => onOpenWorkspacePath?.(targetPath, basePath ?? file.path)}
-          />
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 md:px-6">
+          {file.loading ? (
+            <div className="flex h-full items-center justify-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="animate-spin" size={14} />
+              Loading {file.name}...
+            </div>
+          ) : file.error ? (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
+              <AlertTriangle size={24} className="text-destructive" />
+              <div className="text-sm">
+                Failed to load <span className="font-mono text-foreground">{file.name}</span>
+              </div>
+              <div className="text-xs">{file.error}</div>
+              <button
+                type="button"
+                onClick={() => onRetry(file.path)}
+                className="mt-1 flex items-center gap-1.5 text-xs text-primary hover:underline"
+              >
+                <RotateCw size={12} />
+                Retry
+              </button>
+            </div>
+          ) : (
+            <MarkdownRenderer
+              content={file.content}
+              className="markdown-document-content"
+              currentDocumentPath={file.path}
+              onOpenWorkspacePath={(targetPath, basePath) => onOpenWorkspacePath?.(targetPath, basePath ?? file.path)}
+            />
+          )}
         </div>
       ) : (
-        <div
-          className="flex-1 min-h-0"
-          role="tabpanel"
-          id="markdown-document-panel-edit"
-          aria-labelledby="markdown-document-tab-edit"
-        >
+        <div className="flex-1 min-h-0">
           <FileEditor
             file={file}
             onContentChange={onContentChange}

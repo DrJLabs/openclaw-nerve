@@ -41,7 +41,7 @@ describe('MarkdownDocumentView', () => {
     expect(renderer.parentElement).toHaveClass('md:px-6');
   });
 
-  it('uses a segmented mode switcher to toggle between preview and edit', () => {
+  it('uses a segmented button switcher to toggle between preview and edit', () => {
     render(
       <MarkdownDocumentView
         file={file}
@@ -51,19 +51,50 @@ describe('MarkdownDocumentView', () => {
       />,
     );
 
-    expect(screen.getByRole('tablist', { name: 'Document mode' })).toBeInTheDocument();
+    expect(screen.queryByRole('tablist', { name: 'Document mode' })).toBeNull();
 
-    const previewTab = screen.getByRole('tab', { name: 'Preview' });
-    const editTab = screen.getByRole('tab', { name: 'Edit' });
+    const previewButton = screen.getByRole('button', { name: 'Preview' });
+    const editButton = screen.getByRole('button', { name: 'Edit' });
 
-    expect(previewTab).toHaveAttribute('aria-selected', 'true');
-    expect(editTab).toHaveAttribute('aria-selected', 'false');
+    expect(previewButton).toHaveAttribute('aria-pressed', 'true');
+    expect(editButton).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByTestId('markdown-renderer')).toBeInTheDocument();
 
-    fireEvent.click(editTab);
+    fireEvent.click(editButton);
 
-    expect(editTab).toHaveAttribute('aria-selected', 'true');
-    expect(previewTab).toHaveAttribute('aria-selected', 'false');
+    expect(editButton).toHaveAttribute('aria-pressed', 'true');
+    expect(previewButton).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByTestId('file-editor')).toBeInTheDocument();
+  });
+
+  it('shows the loading state in preview mode instead of a blank markdown pane', () => {
+    render(
+      <MarkdownDocumentView
+        file={{ ...file, loading: true, content: '' }}
+        onContentChange={vi.fn()}
+        onSave={vi.fn()}
+        onRetry={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Loading guide.md...')).toBeInTheDocument();
+    expect(screen.queryByTestId('markdown-renderer')).toBeNull();
+  });
+
+  it('shows the error state in preview mode and allows retry', () => {
+    const onRetry = vi.fn();
+
+    render(
+      <MarkdownDocumentView
+        file={{ ...file, error: 'boom' }}
+        onContentChange={vi.fn()}
+        onSave={vi.fn()}
+        onRetry={onRetry}
+      />,
+    );
+
+    expect(screen.getByText(/Failed to load/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(onRetry).toHaveBeenCalledWith('docs/guide.md');
   });
 });

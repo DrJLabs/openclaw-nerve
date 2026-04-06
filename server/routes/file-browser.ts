@@ -302,10 +302,13 @@ app.get('/api/files/resolve', async (c) => {
     return c.json({ ok: false, error: 'Not supported for remote workspaces', code: 'REMOTE_WORKSPACE' }, 501);
   }
 
-  const normalizedTargetPath = normalizeWorkspaceLookupPath(targetPath);
+  const rawTargetPath = targetPath.trim().replace(/\\/g, '/');
+  const normalizedTargetPath = normalizeWorkspaceLookupPath(rawTargetPath);
   const workspaceRelativePath = (() => {
     if (!relativeTo) return normalizedTargetPath;
-    if (normalizedTargetPath.startsWith('/')) return normalizedTargetPath.replace(/^\/+/, '');
+    if (rawTargetPath === '/workspace' || rawTargetPath === '/workspace/') return '.';
+    if (rawTargetPath.startsWith('/workspace/')) return rawTargetPath.slice('/workspace/'.length);
+    if (rawTargetPath.startsWith('/')) return rawTargetPath.replace(/^\/+/, '');
 
     const normalizedRelativeTo = normalizeWorkspaceLookupPath(relativeTo.replace(/\\/g, '/')).replace(/^\/+/, '');
     const relativeDir = path.posix.dirname(normalizedRelativeTo);

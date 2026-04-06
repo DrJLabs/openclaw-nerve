@@ -1294,7 +1294,10 @@
 
 .markdown-document-content h1,
 .markdown-document-content h2,
-.markdown-document-content h3 {
+.markdown-document-content h3,
+.markdown-document-content h4,
+.markdown-document-content h5,
+.markdown-document-content h6 {
   scroll-margin-top: 1rem;
 }
 

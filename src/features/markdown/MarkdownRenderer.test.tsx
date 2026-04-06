@@ -80,7 +80,22 @@ describe('MarkdownRenderer', () => {
     );
 
     fireEvent.click(screen.getByRole('link', { name: '/workspace/src/App.tsx' }));
-    expect(onOpenWorkspacePath).toHaveBeenCalledWith('/workspace/src/App.tsx');
+    expect(onOpenWorkspacePath).toHaveBeenCalledWith('/workspace/src/App.tsx', undefined);
+  });
+
+  it('passes current document context to inline path references too', () => {
+    const onOpenWorkspacePath = vi.fn();
+    render(
+      <MarkdownRenderer
+        content="Open /workspace/src/App.tsx now"
+        onOpenWorkspacePath={onOpenWorkspacePath}
+        pathLinkPrefixes={['/workspace/']}
+        currentDocumentPath="notes/index.md"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('link', { name: '/workspace/src/App.tsx' }));
+    expect(onOpenWorkspacePath).toHaveBeenCalledWith('/workspace/src/App.tsx', 'notes/index.md');
   });
 
   it('logs and swallows rejected inline workspace path opens', async () => {
@@ -115,16 +130,18 @@ describe('MarkdownRenderer', () => {
     expect(screen.queryByRole('link', { name: '/workspace/src/App.tsx' })).toBeNull();
   });
 
-  it('opens workspace links in-app when a handler is provided', () => {
+  it('opens workspace links in-app when a handler is provided', async () => {
     const onOpenWorkspacePath = vi.fn();
     render(<MarkdownRenderer content="[notes](docs/todo.md)" onOpenWorkspacePath={onOpenWorkspacePath} />);
 
     fireEvent.click(screen.getByRole('link', { name: 'notes' }));
 
-    expect(onOpenWorkspacePath).toHaveBeenCalledWith('docs/todo.md', undefined);
+    await waitFor(() => {
+      expect(onOpenWorkspacePath).toHaveBeenCalledWith('docs/todo.md', undefined);
+    });
   });
 
-  it('passes the current document path for markdown-document-relative links', () => {
+  it('passes the current document path for markdown-document-relative links', async () => {
     const onOpenWorkspacePath = vi.fn();
     render(
       <MarkdownRenderer
@@ -136,10 +153,12 @@ describe('MarkdownRenderer', () => {
 
     fireEvent.click(screen.getByRole('link', { name: 'advanced' }));
 
-    expect(onOpenWorkspacePath).toHaveBeenCalledWith('../advanced.md', 'docs/guide/index.md');
+    await waitFor(() => {
+      expect(onOpenWorkspacePath).toHaveBeenCalledWith('../advanced.md', 'docs/guide/index.md');
+    });
   });
 
-  it('preserves leading-slash workspace links for markdown documents', () => {
+  it('preserves leading-slash workspace links for markdown documents', async () => {
     const onOpenWorkspacePath = vi.fn();
     render(
       <MarkdownRenderer
@@ -151,7 +170,9 @@ describe('MarkdownRenderer', () => {
 
     fireEvent.click(screen.getByRole('link', { name: 'todo' }));
 
-    expect(onOpenWorkspacePath).toHaveBeenCalledWith('/docs/todo.md', 'notes/index.md');
+    await waitFor(() => {
+      expect(onOpenWorkspacePath).toHaveBeenCalledWith('/docs/todo.md', 'notes/index.md');
+    });
   });
 
   it('splits fragments from workspace link paths before opening files', async () => {
@@ -176,7 +197,7 @@ describe('MarkdownRenderer', () => {
     replaceState.mockRestore();
   });
 
-  it('does not split encoded hash characters in workspace link paths', () => {
+  it('does not split encoded hash characters in workspace link paths', async () => {
     const onOpenWorkspacePath = vi.fn();
     render(
       <MarkdownRenderer
@@ -187,7 +208,9 @@ describe('MarkdownRenderer', () => {
 
     fireEvent.click(screen.getByRole('link', { name: 'guide' }));
 
-    expect(onOpenWorkspacePath).toHaveBeenCalledWith('foo#bar.md', undefined);
+    await waitFor(() => {
+      expect(onOpenWorkspacePath).toHaveBeenCalledWith('foo#bar.md', undefined);
+    });
   });
 
   it('adds stable ids to headings for same-document anchor navigation', () => {
@@ -255,6 +278,24 @@ describe('MarkdownRenderer', () => {
   it('logs and swallows rejected markdown workspace link opens', async () => {
     const error = new Error('nope');
     const onOpenWorkspacePath = vi.fn().mockRejectedValueOnce(error);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(<MarkdownRenderer content="[notes](docs/todo.md)" onOpenWorkspacePath={onOpenWorkspacePath} />);
+
+    fireEvent.click(screen.getByRole('link', { name: 'notes' }));
+
+    await waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith('Failed to open workspace path link:', error);
+    });
+
+    consoleError.mockRestore();
+  });
+
+  it('logs and swallows synchronous throws from markdown workspace link opens', async () => {
+    const error = new Error('boom');
+    const onOpenWorkspacePath = vi.fn(() => {
+      throw error;
+    });
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     render(<MarkdownRenderer content="[notes](docs/todo.md)" onOpenWorkspacePath={onOpenWorkspacePath} />);

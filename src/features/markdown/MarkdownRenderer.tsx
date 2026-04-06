@@ -234,9 +234,9 @@ export function MarkdownRenderer({
     searchQuery,
     pathLinkPrefixes,
     onOpenWorkspacePath: onOpenWorkspacePath
-      ? (path: string) => onOpenWorkspacePath(path)
+      ? (path: string) => onOpenWorkspacePath(path, currentDocumentPath)
       : undefined,
-  }), [searchQuery, pathLinkPrefixes, onOpenWorkspacePath]);
+  }), [searchQuery, pathLinkPrefixes, onOpenWorkspacePath, currentDocumentPath]);
 
   const scrollToAnchorId = useCallback((anchorId: string, behavior: ScrollBehavior = 'smooth') => {
     const root = containerRef.current;
@@ -382,7 +382,8 @@ export function MarkdownRenderer({
               className={mergedClassName}
               onClick={(event) => {
                 event.preventDefault();
-                Promise.resolve(onOpenWorkspacePath(normalizedTarget, currentDocumentPath))
+                Promise.resolve()
+                  .then(() => onOpenWorkspacePath(normalizedTarget, currentDocumentPath))
                   .then(() => {
                     if (fragment) {
                       updateLocationHash(fragment);

@@ -15,7 +15,7 @@ import {
   lazy,
   Suspense,
 } from 'react';
-import { AlertTriangle, CheckCircle2, RotateCw } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Command, RotateCw } from 'lucide-react';
 import { useGateway } from '@/contexts/GatewayContext';
 import { useSessionContext, type SpawnSessionOpts } from '@/contexts/SessionContext';
 import { useChat } from '@/contexts/ChatContext';
@@ -857,6 +857,7 @@ export default function App({ onLogout }: AppProps) {
       
       {(!isCompactLayout || !isMobileTopBarHidden) && (
         <TopBar
+          onOpenCommandPalette={handleOpenPalette}
           onSettings={openSettings}
           agentLogEntries={agentLogEntries}
           tokenData={tokenData}
@@ -871,6 +872,19 @@ export default function App({ onLogout }: AppProps) {
           onViewModeChange={setViewMode}
           showKanbanView={kanbanVisible}
         />
+      )}
+
+      {isCompactLayout && !paletteOpen && (
+        <button
+          type="button"
+          onClick={handleOpenPalette}
+          title="Open command palette"
+          aria-label="Open command palette"
+          className="fixed bottom-20 right-3 z-40 inline-flex items-center gap-2 rounded-2xl border border-primary/25 bg-card/94 px-4 py-3 text-sm font-medium text-foreground shadow-[0_20px_48px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-transform hover:-translate-y-px sm:hidden"
+        >
+          <Command size={16} aria-hidden="true" />
+          <span>Commands</span>
+        </button>
       )}
       
       <PanelErrorBoundary name="Settings">

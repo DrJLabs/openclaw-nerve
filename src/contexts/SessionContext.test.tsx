@@ -379,6 +379,43 @@ describe('SessionContext', () => {
     });
   });
 
+  it('uses the server-provided default workspace root when spawning a root agent', async () => {
+    globalThis.fetch = vi.fn((input: string | URL | Request) => {
+      const url = typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
+
+      if (url.includes('/api/server-info')) {
+        return Promise.resolve(jsonResponse({
+          agentName: 'Jen',
+          defaultAgentWorkspaceRoot: '/managed/workspaces',
+        }));
+      }
+      if (url.includes('/api/agentlog')) return Promise.resolve(jsonResponse([]));
+      if (url.includes('/api/sessions/hidden')) return Promise.resolve(jsonResponse({ ok: true, sessions: [] }));
+      return Promise.resolve(jsonResponse({}));
+    }) as typeof fetch;
+
+    function Spawn() {
+      const { spawnSession } = useSessionContext();
+      return <button data-testid="spawn-managed" onClick={() => spawnSession({
+        kind: 'root', agentName: 'Managed', task: 'hi', model: 'anthropic/claude-sonnet-4-5',
+      })} />;
+    }
+
+    render(<SessionProvider><Spawn /></SessionProvider>);
+    await waitFor(() => expect(rpcMock).toHaveBeenCalledWith('sessions.list', { limit: 1000 }));
+    screen.getByTestId('spawn-managed').click();
+    await waitFor(() => {
+      expect(rpcMock).toHaveBeenCalledWith('agents.create', expect.objectContaining({
+        name: 'Managed',
+        workspace: '/managed/workspaces/managed',
+      }));
+    });
+  });
+
   it('uses the full gateway session list for sidebar refreshes so older agent chats stay visible', async () => {
     render(
       <SessionProvider>

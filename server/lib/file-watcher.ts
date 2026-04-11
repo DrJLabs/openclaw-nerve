@@ -16,6 +16,7 @@ import { broadcast } from '../routes/events.js';
 import { config } from './config.js';
 import { resolveAgentWorkspace, type AgentWorkspace } from './agent-workspace.js';
 import { isBinary, isExcluded } from './file-utils.js';
+import { listConfiguredAgentWorkspaces, resolveOpenClawConfigPath } from './openclaw-config.js';
 import { isWorkspaceLocal } from './workspace-detect.js';
 
 let rootDirWatcher: FSWatcher | null = null;
@@ -72,6 +73,16 @@ function discoverWorkspaces(): AgentWorkspace[] {
   const workspaces = new Map<string, AgentWorkspace>();
   const mainWorkspace = resolveAgentWorkspace('main');
   workspaces.set(mainWorkspace.agentId, mainWorkspace);
+
+  for (const configured of listConfiguredAgentWorkspaces()) {
+    if (configured.agentId === 'main') continue;
+    workspaces.set(configured.agentId, {
+      agentId: configured.agentId,
+      workspaceRoot: configured.workspaceRoot,
+      memoryPath: path.join(configured.workspaceRoot, 'MEMORY.md'),
+      memoryDir: path.join(configured.workspaceRoot, 'memory'),
+    });
+  }
 
   const openclawDir = path.join(config.home, '.openclaw');
   if (!existsSync(openclawDir)) {
@@ -190,13 +201,19 @@ function refreshWorkspaceWatchers(): void {
 
 function startRootWorkspaceWatcher(): void {
   const openclawDir = path.join(config.home, '.openclaw');
-  if (rootDirWatcher || !existsSync(openclawDir)) return;
+  if (rootDirWatcher) return;
 
   try {
-    rootDirWatcher = watch(openclawDir, (_eventType, filename) => {
+    const watchTarget = existsSync(resolveOpenClawConfigPath())
+      ? resolveOpenClawConfigPath()
+      : openclawDir;
+
+    if (!existsSync(watchTarget)) return;
+
+    const watchingConfigFile = watchTarget === resolveOpenClawConfigPath();
+    rootDirWatcher = watch(watchTarget, (_eventType, filename) => {
       const file = getWatchFilename(filename);
-      if (!file) return;
-      if (file === 'workspace' || file.startsWith(WORKSPACE_PREFIX)) {
+      if ((watchingConfigFile && !file) || file === 'openclaw.json' || file === 'workspace' || (file?.startsWith(WORKSPACE_PREFIX) ?? false)) {
         refreshWorkspaceWatchers();
       }
     });

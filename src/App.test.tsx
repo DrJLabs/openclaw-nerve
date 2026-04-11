@@ -869,7 +869,7 @@ describe('App kanban visibility gating', () => {
     expect(screen.getByTestId('command-palette-state')).toHaveTextContent('open');
   });
 
-  it('shows a mobile-only commands FAB that opens the palette in compact layout', () => {
+  it('shows a mobile-only commands FAB above the composer in compact layout', () => {
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -888,7 +888,10 @@ describe('App kanban visibility gating', () => {
 
     expect(screen.getByTestId('command-palette-state')).toHaveTextContent('closed');
 
-    fireEvent.click(screen.getAllByRole('button', { name: /open command palette/i }).at(-1)!);
+    const floatingButton = screen.getAllByRole('button', { name: /open command palette/i }).at(-1)!;
+    expect(floatingButton.className).toContain('bottom-40');
+
+    fireEvent.click(floatingButton);
 
     expect(screen.getByTestId('command-palette-state')).toHaveTextContent('open');
   });

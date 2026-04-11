@@ -11,6 +11,7 @@ import {
 import {
   Activity,
   BarChart3,
+  Command,
   Settings,
   Radio,
   Users,
@@ -84,6 +85,8 @@ const PANEL_CONFIG: Record<Exclude<PanelId, null> | "default", PanelConfig> = {
 
 /** Props for {@link TopBar}. */
 interface TopBarProps {
+  /** Callback to open the command palette. */
+  onOpenCommandPalette: () => void;
   /** Callback to open the settings modal. */
   onSettings: () => void;
   /** Agent log entries rendered in the dropdown log panel. */
@@ -120,6 +123,7 @@ interface TopBarProps {
  * Workspace panels.
  */
 export function TopBar({
+  onOpenCommandPalette,
   onSettings,
   agentLogEntries,
   tokenData,
@@ -359,6 +363,17 @@ export function TopBar({
               )}
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={onOpenCommandPalette}
+            title="Open command palette"
+            aria-label="Open command palette"
+            className={buttonBase}
+          >
+            <Command size={14} aria-hidden="true" />
+            <span>Commands</span>
+          </button>
 
           {/* Usage button */}
           <button

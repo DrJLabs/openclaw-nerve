@@ -458,6 +458,50 @@ describe('SessionContext', () => {
     });
   });
 
+
+  it('clears stale identity labels when a non-main root has no parseable identity name', async () => {
+    rpcMock.mockImplementation(async (method: string) => {
+      if (method === 'sessions.list') {
+        return {
+          sessions: [
+            { sessionKey: 'agent:main:main', label: 'Main' },
+            { sessionKey: 'agent:reviewer:main', identityName: 'Reviewer Prime' },
+          ],
+        };
+      }
+      return {};
+    });
+
+    globalThis.fetch = vi.fn((input: string | URL | Request) => {
+      const url = typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
+
+      if (url.includes('/api/server-info')) return Promise.resolve(jsonResponse({ agentName: 'Jen' }));
+      if (url.includes('/api/workspace/identity?agentId=reviewer')) {
+        return Promise.resolve(jsonResponse({ ok: true, content: '# IDENTITY.md\n- Role: Review agent\n' }));
+      }
+      if (url.includes('/api/agentlog')) return Promise.resolve(jsonResponse([]));
+      if (url.includes('/api/sessions/hidden')) return Promise.resolve(jsonResponse({ ok: true, sessions: [] }));
+      return Promise.resolve(jsonResponse({}));
+    }) as typeof fetch;
+
+    render(
+      <SessionProvider>
+        <SessionDisplayLabels />
+      </SessionProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Jen (main)')).toBeInTheDocument();
+      expect(screen.getByText('reviewer')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Reviewer Prime (reviewer)')).not.toBeInTheDocument();
+  });
+
   it('does not refetch identity content for roots whose identity files have no parseable name', async () => {
     rpcMock.mockImplementation(async (method: string) => {
       if (method === 'sessions.list') {

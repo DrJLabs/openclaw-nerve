@@ -204,16 +204,22 @@ function startRootWorkspaceWatcher(): void {
   if (rootDirWatcher) return;
 
   try {
-    const watchTarget = existsSync(resolveOpenClawConfigPath())
-      ? resolveOpenClawConfigPath()
+    const configPath = resolveOpenClawConfigPath();
+    const watchTarget = existsSync(configPath)
+      ? configPath
       : openclawDir;
 
     if (!existsSync(watchTarget)) return;
 
-    const watchingConfigFile = watchTarget === resolveOpenClawConfigPath();
+    const watchingConfigFile = watchTarget === configPath;
+    const configBasename = path.basename(configPath);
     rootDirWatcher = watch(watchTarget, (_eventType, filename) => {
       const file = getWatchFilename(filename);
-      if ((watchingConfigFile && !file) || file === 'openclaw.json' || file === 'workspace' || (file?.startsWith(WORKSPACE_PREFIX) ?? false)) {
+      if (
+        (watchingConfigFile && (!file || file === configBasename)) ||
+        file === 'workspace' ||
+        (file?.startsWith(WORKSPACE_PREFIX) ?? false)
+      ) {
         refreshWorkspaceWatchers();
       }
     });

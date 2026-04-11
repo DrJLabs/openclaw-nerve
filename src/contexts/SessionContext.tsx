@@ -71,6 +71,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [agentStatus, setAgentStatus] = useState<Record<string, GranularAgentState>>({});
   const [agentName, setAgentName] = useState('Agent');
   const [rootIdentityNames, setRootIdentityNames] = useState<Record<string, string>>({});
+  const [rootIdentityMisses, setRootIdentityMisses] = useState<Record<string, true>>({});
   const [unreadSessionKeys, setUnreadSessionKeys] = useState<Set<string>>(new Set());
   const unreadSessionKeysRef = useRef(unreadSessionKeys);
   const soundEnabledRef = useRef(soundEnabled);
@@ -176,7 +177,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         .filter(isTopLevelAgentSessionKey)
         .map((sessionKey) => getRootAgentId(sessionKey))
         .filter((rootId): rootId is string => Boolean(rootId) && rootId !== 'main'),
-    )).filter((rootId) => !rootIdentityNames[rootId]);
+    )).filter((rootId) => !rootIdentityNames[rootId] && !rootIdentityMisses[rootId]);
 
     if (rootAgentIds.length === 0) return;
 
@@ -188,19 +189,40 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (!res.ok) return null;
         const data = await res.json() as { ok?: boolean; content?: string };
         const identityName = typeof data.content === 'string' ? extractIdentityName(data.content) : null;
-        return identityName ? { rootId, identityName } : null;
+        if (identityName) return { rootId, identityName, kind: 'hit' as const };
+        return { rootId, kind: 'miss' as const };
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') return null;
         return null;
       }
     })).then((results) => {
       if (controller.signal.aborted) return;
-      const resolved = results.filter((result): result is { rootId: string; identityName: string } => Boolean(result));
+      const resolved = results.filter((result): result is NonNullable<typeof result> => Boolean(result));
       if (resolved.length === 0) return;
+
+      setRootIdentityMisses((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        for (const result of resolved) {
+          if (result.kind === 'hit') {
+            if (!next[result.rootId]) continue;
+            delete next[result.rootId];
+            changed = true;
+            continue;
+          }
+          if (next[result.rootId]) continue;
+          next[result.rootId] = true;
+          changed = true;
+        }
+        return changed ? next : prev;
+      });
+
       setRootIdentityNames((prev) => {
         const next = { ...prev };
         let changed = false;
-        for (const { rootId, identityName } of resolved) {
+        for (const result of resolved) {
+          if (result.kind !== 'hit') continue;
+          const { rootId, identityName } = result;
           if (next[rootId] === identityName) continue;
           next[rootId] = identityName;
           changed = true;
@@ -210,7 +232,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     });
 
     return () => controller.abort();
-  }, [rootIdentityNames, sessions]);
+  }, [rootIdentityMisses, rootIdentityNames, sessions]);
 
   const displaySessions = useMemo(() => sessions.map((session) => {
     const sessionKey = getSessionKey(session);

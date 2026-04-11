@@ -38,6 +38,19 @@ describe('assigneeOptions', () => {
     ]);
   });
 
+  it('uses identity-backed labels for hydrated root agents', () => {
+    const sessions = [
+      session('agent:main:main'),
+      session('agent:designer:main', { identityName: 'Designer Prime' }),
+    ];
+
+    expect(buildAssigneeOptions(sessions, 'Nerve')).toEqual([
+      { value: '', label: 'Unassigned' },
+      { value: 'operator', label: 'Operator' },
+      { value: 'agent:designer', label: 'Designer Prime (designer)' },
+    ]);
+  });
+
   it('ignores non-top-level sessions', () => {
     const sessions = [
       session('agent:main:main'),

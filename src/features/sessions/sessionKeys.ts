@@ -132,7 +132,7 @@ export function getTopLevelAgentSessions(sessions: Session[]): Session[] {
 
 export function extractIdentityName(content: string): string | null {
   const normalized = content.replace(/\*\*/g, '');
-  const match = normalized.match(/^\s*[-*]\s*Name\s*:\s*(.+?)\s*$/im);
+  const match = normalized.match(/^\s*(?:[-*]\s*)?Name\s*:\s*(.+?)\s*$/im);
   return match?.[1]?.trim() || null;
 }
 

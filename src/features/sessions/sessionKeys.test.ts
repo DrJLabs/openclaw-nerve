@@ -24,6 +24,7 @@ describe('sessionKeys', () => {
   it('extracts agent names from IDENTITY.md variants', () => {
     expect(extractIdentityName('# IDENTITY.md - Who Am I?\n\n- **Name:** Blende\n- **Creature:** AI workshop familiar\n')).toBe('Blende');
     expect(extractIdentityName('# IDENTITY.md\n- Name: forge\n- Role: Coding\n')).toBe('forge');
+    expect(extractIdentityName('# IDENTITY.md\nName: Reviewer Prime\nRole: Review agent\n')).toBe('Reviewer Prime');
     expect(extractIdentityName('# IDENTITY.md\n- Role: Coding only\n')).toBeNull();
   });
 

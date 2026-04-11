@@ -57,6 +57,16 @@ function SessionDisplayLabels() {
   );
 }
 
+function SessionRefreshProbe() {
+  const { refreshSessions } = useSessionContext();
+
+  return (
+    <button data-testid="refresh-sessions" onClick={() => void refreshSessions()}>
+      Refresh sessions
+    </button>
+  );
+}
+
 function SessionUnreadProbe() {
   const { currentSession, unreadSessions, setCurrentSession } = useSessionContext();
 
@@ -446,6 +456,78 @@ describe('SessionContext', () => {
       expect(screen.getByText('Jen (main)')).toBeInTheDocument();
       expect(screen.getByText('Reviewer Prime (reviewer)')).toBeInTheDocument();
     });
+  });
+
+  it('does not refetch identity content for roots whose identity files have no parseable name', async () => {
+    rpcMock.mockImplementation(async (method: string) => {
+      if (method === 'sessions.list') {
+        return {
+          sessions: [
+            { sessionKey: 'agent:main:main', label: 'Main' },
+            { sessionKey: 'agent:reviewer:main', displayName: 'stale reviewer label' },
+          ],
+        };
+      }
+      return {};
+    });
+
+    const fetchSpy = vi.fn((input: string | URL | Request) => {
+      const url = typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
+
+      if (url.includes('/api/server-info')) return Promise.resolve(jsonResponse({ agentName: 'Jen' }));
+      if (url.includes('/api/workspace/identity?agentId=reviewer')) {
+        return Promise.resolve(jsonResponse({ ok: true, content: '# IDENTITY.md\n- Role: Review agent\n' }));
+      }
+      if (url.includes('/api/agentlog')) return Promise.resolve(jsonResponse([]));
+      if (url.includes('/api/sessions/hidden')) return Promise.resolve(jsonResponse({ ok: true, sessions: [] }));
+      return Promise.resolve(jsonResponse({}));
+    }) as typeof fetch;
+    globalThis.fetch = fetchSpy;
+
+    const { getByTestId } = render(
+      <SessionProvider>
+        <SessionRefreshProbe />
+      </SessionProvider>,
+    );
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/workspace/identity?agentId=reviewer',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+    });
+
+    const identityCallsBeforeRefresh = fetchSpy.mock.calls.filter(([input]) => {
+      const url = typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
+      return url.includes('/api/workspace/identity?agentId=reviewer');
+    }).length;
+    expect(identityCallsBeforeRefresh).toBe(1);
+
+    await act(async () => {
+      getByTestId('refresh-sessions').click();
+    });
+
+    await waitFor(() => {
+      expect(rpcMock).toHaveBeenCalledWith('sessions.list', { limit: 1000 });
+    });
+
+    const identityCallsAfterRefresh = fetchSpy.mock.calls.filter(([input]) => {
+      const url = typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
+      return url.includes('/api/workspace/identity?agentId=reviewer');
+    }).length;
+    expect(identityCallsAfterRefresh).toBe(1);
   });
 
   it('marks background top-level roots unread on start and pings when chat reaches a terminal event', async () => {

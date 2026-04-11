@@ -20,8 +20,8 @@ describe('assigneeOptions', () => {
     expect(buildAssigneeOptions(sessions, 'Nerve')).toEqual([
       { value: '', label: 'Unassigned' },
       { value: 'operator', label: 'Operator' },
-      { value: 'agent:designer', label: 'Alpha Agent' },
-      { value: 'agent:reviewer', label: 'Reviewer' },
+      { value: 'agent:designer', label: 'designer' },
+      { value: 'agent:reviewer', label: 'reviewer' },
     ]);
   });
 
@@ -50,7 +50,7 @@ describe('assigneeOptions', () => {
     expect(buildAssigneeOptions(sessions, 'Nerve')).toEqual([
       { value: '', label: 'Unassigned' },
       { value: 'operator', label: 'Operator' },
-      { value: 'agent:builder', label: 'Builder' },
+      { value: 'agent:builder', label: 'builder' },
     ]);
   });
 
@@ -63,7 +63,7 @@ describe('assigneeOptions', () => {
     expect(buildAssigneeOptionsForEdit(sessions, 'agent:design-reviewer-2', 'Nerve')).toEqual([
       { value: '', label: 'Unassigned' },
       { value: 'operator', label: 'Operator' },
-      { value: 'agent:reviewer', label: 'Reviewer' },
+      { value: 'agent:reviewer', label: 'reviewer' },
       { value: 'agent:design-reviewer-2', label: 'Agent design reviewer 2 (inactive)', disabled: true },
     ]);
   });
@@ -77,7 +77,7 @@ describe('assigneeOptions', () => {
     const expected = [
       { value: '', label: 'Unassigned' },
       { value: 'operator', label: 'Operator' },
-      { value: 'agent:reviewer', label: 'Reviewer' },
+      { value: 'agent:reviewer', label: 'reviewer' },
     ];
 
     expect(buildAssigneeOptionsForEdit(sessions, '')).toEqual(expected);
@@ -95,7 +95,7 @@ describe('assigneeOptions', () => {
     expect(buildAssigneeOptionsForEdit(sessions, ' agent:reviewer ')).toEqual([
       { value: '', label: 'Unassigned' },
       { value: 'operator', label: 'Operator' },
-      { value: 'agent:reviewer', label: 'Reviewer' },
+      { value: 'agent:reviewer', label: 'reviewer' },
     ]);
   });
 

@@ -8,6 +8,7 @@ import { describeToolUse } from '@/utils/helpers';
 import { buildSessionTree } from '@/features/sessions/sessionTree';
 import {
   buildAgentRootSessionKey,
+  extractIdentityName,
   getAgentRegistrationName,
   getRootAgentSessionKey,
   getSessionDisplayLabel,
@@ -69,6 +70,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [eventEntries, setEventEntries] = useState<EventEntry[]>([]);
   const [agentStatus, setAgentStatus] = useState<Record<string, GranularAgentState>>({});
   const [agentName, setAgentName] = useState('Agent');
+  const [rootIdentityNames, setRootIdentityNames] = useState<Record<string, string>>({});
   const [unreadSessionKeys, setUnreadSessionKeys] = useState<Set<string>>(new Set());
   const unreadSessionKeysRef = useRef(unreadSessionKeys);
   const soundEnabledRef = useRef(soundEnabled);
@@ -168,8 +170,63 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   
   // Update refs in effect to avoid render-time mutations
   useEffect(() => {
-    sessionsRef.current = sessions;
-  }, [sessions]);
+    const rootAgentIds = Array.from(new Set(
+      sessions
+        .map((session) => getSessionKey(session))
+        .filter(isTopLevelAgentSessionKey)
+        .map((sessionKey) => getRootAgentId(sessionKey))
+        .filter((rootId): rootId is string => Boolean(rootId) && rootId !== 'main'),
+    )).filter((rootId) => !rootIdentityNames[rootId]);
+
+    if (rootAgentIds.length === 0) return;
+
+    const controller = new AbortController();
+    void Promise.all(rootAgentIds.map(async (rootId) => {
+      try {
+        const params = new URLSearchParams({ agentId: rootId });
+        const res = await fetch(`/api/workspace/identity?${params.toString()}`, { signal: controller.signal });
+        if (!res.ok) return null;
+        const data = await res.json() as { ok?: boolean; content?: string };
+        const identityName = typeof data.content === 'string' ? extractIdentityName(data.content) : null;
+        return identityName ? { rootId, identityName } : null;
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return null;
+        return null;
+      }
+    })).then((results) => {
+      if (controller.signal.aborted) return;
+      const resolved = results.filter((result): result is { rootId: string; identityName: string } => Boolean(result));
+      if (resolved.length === 0) return;
+      setRootIdentityNames((prev) => {
+        const next = { ...prev };
+        let changed = false;
+        for (const { rootId, identityName } of resolved) {
+          if (next[rootId] === identityName) continue;
+          next[rootId] = identityName;
+          changed = true;
+        }
+        return changed ? next : prev;
+      });
+    });
+
+    return () => controller.abort();
+  }, [rootIdentityNames, sessions]);
+
+  const displaySessions = useMemo(() => sessions.map((session) => {
+    const sessionKey = getSessionKey(session);
+    if (!isTopLevelAgentSessionKey(sessionKey)) return session;
+
+    const rootId = getRootAgentId(sessionKey);
+    if (!rootId) return session;
+
+    const identityName = rootId === 'main' ? agentName : rootIdentityNames[rootId];
+    if (!identityName || session.identityName === identityName) return session;
+    return { ...session, identityName };
+  }), [agentName, rootIdentityNames, sessions]);
+
+  useEffect(() => {
+    sessionsRef.current = displaySessions;
+  }, [displaySessions]);
   
   const currentSessionRef = useRef(currentSession);
   useEffect(() => {
@@ -819,7 +876,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [rpc]);
 
   const value = useMemo<SessionContextValue>(() => ({
-    sessions,
+    sessions: displaySessions,
     sessionsLoading,
     currentSession,
     setCurrentSession,
@@ -837,7 +894,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     eventEntries,
     agentName,
   }), [
-    sessions, sessionsLoading, currentSession, setCurrentSession, busyState, agentStatus,
+    displaySessions, sessionsLoading, currentSession, setCurrentSession, busyState, agentStatus,
     unreadSessions, markSessionRead,
     abortSession, refreshSessions, deleteSession, spawnSession, renameSession,
     updateSessionFromEvent, agentLogEntries, eventEntries, agentName,

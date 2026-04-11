@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { SessionProvider, useSessionContext } from './SessionContext';
 import { getSessionKey, type GatewayEvent } from '@/types';
+import { getSessionDisplayLabel } from '@/features/sessions/sessionKeys';
 
 const mockUseGateway = vi.fn();
 const mockUseSettings = vi.fn();
@@ -39,6 +40,18 @@ function SessionLabels() {
       <div data-testid="current-session">{currentSession}</div>
       {sessions.map((session) => (
         <div key={getSessionKey(session)}>{session.label || session.displayName || getSessionKey(session)}</div>
+      ))}
+    </div>
+  );
+}
+
+function SessionDisplayLabels() {
+  const { sessions, agentName } = useSessionContext();
+
+  return (
+    <div>
+      {sessions.map((session) => (
+        <div key={getSessionKey(session)}>{getSessionDisplayLabel(session, agentName)}</div>
       ))}
     </div>
   );
@@ -392,6 +405,47 @@ describe('SessionContext', () => {
 
     expect(rpcMock).toHaveBeenCalledWith('sessions.list', { limit: 1000 });
     expect(rpcMock).not.toHaveBeenCalledWith('sessions.list', expect.objectContaining({ activeMinutes: expect.any(Number) }));
+  });
+
+  it('hydrates root session labels from IDENTITY.md names', async () => {
+    rpcMock.mockImplementation(async (method: string) => {
+      if (method === 'sessions.list') {
+        return {
+          sessions: [
+            { sessionKey: 'agent:main:main', label: 'Main' },
+            { sessionKey: 'agent:reviewer:main', displayName: 'stale reviewer label' },
+          ],
+        };
+      }
+      return {};
+    });
+
+    globalThis.fetch = vi.fn((input: string | URL | Request) => {
+      const url = typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
+
+      if (url.includes('/api/server-info')) return Promise.resolve(jsonResponse({ agentName: 'Jen' }));
+      if (url.includes('/api/workspace/identity?agentId=reviewer')) {
+        return Promise.resolve(jsonResponse({ ok: true, content: '# IDENTITY.md\n- Name: Reviewer Prime\n- Role: Review agent\n' }));
+      }
+      if (url.includes('/api/agentlog')) return Promise.resolve(jsonResponse([]));
+      if (url.includes('/api/sessions/hidden')) return Promise.resolve(jsonResponse({ ok: true, sessions: [] }));
+      return Promise.resolve(jsonResponse({}));
+    }) as typeof fetch;
+
+    render(
+      <SessionProvider>
+        <SessionDisplayLabels />
+      </SessionProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Jen (main)')).toBeInTheDocument();
+      expect(screen.getByText('Reviewer Prime (reviewer)')).toBeInTheDocument();
+    });
   });
 
   it('marks background top-level roots unread on start and pings when chat reaches a terminal event', async () => {

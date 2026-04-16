@@ -40,6 +40,7 @@ import { PanelErrorBoundary } from '@/components/PanelErrorBoundary';
 import { SpawnAgentDialog } from '@/features/sessions/SpawnAgentDialog';
 import { DEFAULT_CHAT_PATH_LINKS_CONFIG, parseChatPathLinksConfig } from '@/features/chat/chatPathLinks';
 import { FileTreePanel, TabbedContentArea, useOpenFiles, type FileTreeChangeEvent } from '@/features/file-browser';
+import { type BeadLinkTarget, type OpenBeadTab, buildBeadTabId } from '@/features/beads';
 import { isImageFile } from '@/features/file-browser/utils/fileTypes';
 import { buildAgentRootSessionKey, getSessionDisplayLabel } from '@/features/sessions/sessionKeys';
 import { shouldGuardWorkspaceSwitch } from '@/features/workspace/workspaceSwitchGuard';
@@ -321,6 +322,7 @@ export default function App({ onLogout }: AppProps) {
   // View mode state (chat | kanban), persisted to localStorage
   const [viewMode, setViewModeRaw] = useState<ViewMode>(() => getInitialViewMode(kanbanVisible));
   const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
+  const [openBeads, setOpenBeads] = useState<OpenBeadTab[]>([]);
   const setViewMode = useCallback((mode: ViewMode) => {
     const nextMode = mode === 'kanban' && !kanbanVisible ? 'chat' : mode;
     setViewModeRaw(nextMode);
@@ -338,6 +340,7 @@ export default function App({ onLogout }: AppProps) {
   const [chatPathLinkPrefixes, setChatPathLinkPrefixes] = useState<string[]>(
     DEFAULT_CHAT_PATH_LINKS_CONFIG.prefixes,
   );
+  const [addToChatEnabled, setAddToChatEnabled] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams({ agentId: workspaceAgentId });
@@ -367,9 +370,106 @@ export default function App({ onLogout }: AppProps) {
   }, [workspaceAgentId]);
 
   useEffect(() => {
+    const controller = new AbortController();
+    let retryTimer: number | null = null;
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    const loadUploadConfig = () => {
+      attempts += 1;
+
+      void fetch('/api/upload-config', { signal: controller.signal })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (controller.signal.aborted) return;
+
+          if (data) {
+            setAddToChatEnabled(Boolean(data.fileReferenceEnabled));
+            return;
+          }
+
+          if (attempts >= maxAttempts) {
+            setAddToChatEnabled(false);
+            return;
+          }
+
+          retryTimer = window.setTimeout(loadUploadConfig, 1000);
+        })
+        .catch(() => {
+          if (controller.signal.aborted) return;
+
+          if (attempts >= maxAttempts) {
+            setAddToChatEnabled(false);
+            return;
+          }
+
+          retryTimer = window.setTimeout(loadUploadConfig, 1000);
+        });
+    };
+
+    loadUploadConfig();
+
+    return () => {
+      controller.abort();
+      if (retryTimer !== null) {
+        window.clearTimeout(retryTimer);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (kanbanVisible || viewMode !== 'kanban') return;
     setViewMode('chat');
   }, [kanbanVisible, setViewMode, viewMode]);
+
+  const openBeadId = useCallback((target: BeadLinkTarget) => {
+    const normalizedBeadId = target.beadId.trim();
+    if (!normalizedBeadId) return;
+
+    const normalizedTarget: BeadLinkTarget = {
+      beadId: normalizedBeadId,
+      explicitTargetPath: target.explicitTargetPath?.trim() || undefined,
+      currentDocumentPath: target.currentDocumentPath?.trim() || undefined,
+      workspaceAgentId: target.workspaceAgentId?.trim() || workspaceAgentId,
+    };
+
+    const tabId = buildBeadTabId(normalizedTarget);
+    setOpenBeads((prev) => {
+      if (prev.some((bead) => bead.id === tabId)) return prev;
+      return [...prev, {
+        id: tabId,
+        beadId: normalizedBeadId,
+        name: normalizedBeadId,
+        explicitTargetPath: normalizedTarget.explicitTargetPath,
+        currentDocumentPath: normalizedTarget.currentDocumentPath,
+        workspaceAgentId: normalizedTarget.workspaceAgentId,
+      }];
+    });
+    setActiveTab(tabId);
+  }, [setActiveTab, workspaceAgentId]);
+
+  const visibleOpenBeads = useMemo(() => openBeads.filter((bead) => {
+    const beadWorkspaceAgentId = bead.workspaceAgentId?.trim() || workspaceAgentId;
+    return beadWorkspaceAgentId === workspaceAgentId;
+  }), [openBeads, workspaceAgentId]);
+
+  useEffect(() => {
+    if (!activeTab.startsWith('bead:')) return;
+    if (visibleOpenBeads.some((bead) => bead.id === activeTab)) return;
+    setActiveTab('chat');
+  }, [activeTab, setActiveTab, visibleOpenBeads]);
+
+  const closeWorkspaceTab = useCallback((tabId: string) => {
+    if (tabId.startsWith('bead:')) {
+      setOpenBeads((prev) => prev.filter((bead) => bead.id !== tabId));
+      if (activeTab === tabId) {
+        setActiveTab('chat');
+      }
+      return;
+    }
+
+    closeFile(tabId);
+  }, [activeTab, closeFile, setActiveTab]);
 
   const openWorkspacePath = useCallback(async (targetPath: string, basePath?: string) => {
     const params = new URLSearchParams({ path: targetPath, agentId: workspaceAgentId });
@@ -667,9 +767,10 @@ export default function App({ onLogout }: AppProps) {
     <TabbedContentArea
       activeTab={activeTab}
       openFiles={openFiles}
+      openBeads={visibleOpenBeads}
       workspaceAgentId={workspaceAgentId}
       onSelectTab={setActiveTab}
-      onCloseTab={closeFile}
+      onCloseTab={closeWorkspaceTab}
       onContentChange={updateContent}
       onSaveFile={handleSaveFile}
       saveToast={visibleSaveToast}
@@ -677,6 +778,8 @@ export default function App({ onLogout }: AppProps) {
       onReloadFile={reloadFile}
       onRetryFile={reloadFile}
       onOpenWorkspacePath={openWorkspacePath}
+      onOpenBeadId={openBeadId}
+      pathLinkPrefixes={chatPathLinkPrefixes}
       chatPanel={
         <PanelErrorBoundary name="Chat">
           <ChatPanel
@@ -704,6 +807,7 @@ export default function App({ onLogout }: AppProps) {
             isMobileTopBarHidden={isMobileTopBarHidden}
             onOpenWorkspacePath={openWorkspacePath}
             pathLinkPrefixes={chatPathLinkPrefixes}
+            onOpenBeadId={openBeadId}
           />
         </PanelErrorBoundary>
       }
@@ -916,6 +1020,8 @@ export default function App({ onLogout }: AppProps) {
               <FileTreePanel
                 workspaceAgentId={workspaceAgentId}
                 onOpenFile={openFile}
+                onAddToChat={(path, kind, agentId) => chatPanelRef.current?.addWorkspacePath(path, kind, agentId ?? workspaceAgentId)}
+                addToChatEnabled={addToChatEnabled}
                 lastChangedEvent={lastChangedEvent}
                 revealRequest={revealRequest}
                 onRemapOpenPaths={remapOpenPaths}
@@ -942,6 +1048,8 @@ export default function App({ onLogout }: AppProps) {
                   <FileTreePanel
                     workspaceAgentId={workspaceAgentId}
                     onOpenFile={openFile}
+                    onAddToChat={(path, kind, agentId) => chatPanelRef.current?.addWorkspacePath(path, kind, agentId ?? workspaceAgentId)}
+                    addToChatEnabled={addToChatEnabled}
                     lastChangedEvent={lastChangedEvent}
                     revealRequest={revealRequest}
                     onRemapOpenPaths={remapOpenPaths}

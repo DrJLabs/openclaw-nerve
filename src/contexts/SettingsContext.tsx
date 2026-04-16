@@ -36,6 +36,8 @@ interface SettingsContextValue {
   toggleEvents: () => void;
   logVisible: boolean;
   toggleLog: () => void;
+  showHiddenWorkspaceEntries: boolean;
+  toggleShowHiddenWorkspaceEntries: () => void;
   theme: ThemeName;
   setTheme: (theme: ThemeName) => void;
   font: FontName;
@@ -120,6 +122,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   });
   const [logVisible, setLogVisible] = useState(() => {
     return localStorage.getItem('nerve:showLog') === 'true'; // Default to false (hidden)
+  });
+  const [showHiddenWorkspaceEntries, setShowHiddenWorkspaceEntries] = useState(() => {
+    return localStorage.getItem('nerve:showHiddenWorkspaceEntries') === 'true';
   });
   const [theme, setThemeState] = useState<ThemeName>(() => {
     const saved = localStorage.getItem('oc-theme') as ThemeName | null;
@@ -295,6 +300,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const toggleShowHiddenWorkspaceEntries = useCallback(() => {
+    setShowHiddenWorkspaceEntries(prev => {
+      const next = !prev;
+      localStorage.setItem('nerve:showHiddenWorkspaceEntries', String(next));
+      return next;
+    });
+  }, []);
+
   const setTheme = useCallback((newTheme: ThemeName) => {
     setThemeState(newTheme);
     localStorage.setItem('oc-theme', newTheme);
@@ -354,6 +367,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     toggleEvents,
     logVisible,
     toggleLog,
+    showHiddenWorkspaceEntries,
+    toggleShowHiddenWorkspaceEntries,
     theme,
     setTheme,
     font,
@@ -370,7 +385,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     wakeWordEnabled, handleToggleWakeWord, handleWakeWordState,
     liveTranscriptionPreview, toggleLiveTranscriptionPreview,
     speak, panelRatio, setPanelRatio, telemetryVisible, toggleTelemetry,
-    eventsVisible, toggleEvents, logVisible, toggleLog, theme, setTheme, font, setFont,
+    eventsVisible, toggleEvents, logVisible, toggleLog, showHiddenWorkspaceEntries, toggleShowHiddenWorkspaceEntries, theme, setTheme, font, setFont,
     fontSize, setFontSize, editorFontSize, setEditorFontSize, kanbanVisible, toggleKanbanVisible,
   ]);
 

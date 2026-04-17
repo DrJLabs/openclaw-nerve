@@ -4,6 +4,9 @@ import { FileIcon, FolderIcon } from './utils/fileIcons';
 import { isImageFile, isPdfFile } from './utils/fileTypes';
 import type { TreeEntry } from './types';
 
+const LONG_PRESS_MS = 450;
+const MOVE_TOLERANCE_PX = 10;
+
 interface FileTreeNodeProps {
   entry: TreeEntry;
   depth: number;
@@ -57,8 +60,6 @@ export function FileTreeNode({
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const activeTouchPointerIdRef = useRef<number | null>(null);
   const longPressTriggeredRef = useRef(false);
-  const LONG_PRESS_MS = 450;
-  const MOVE_TOLERANCE_PX = 10;
 
   const isDir = entry.type === 'directory';
   const isExpanded = expandedPaths.has(entry.path);
@@ -119,10 +120,7 @@ export function FileTreeNode({
     touchStartRef.current = { x: event.clientX, y: event.clientY };
     longPressTimerRef.current = window.setTimeout(() => {
       longPressTriggeredRef.current = true;
-      if (longPressTimerRef.current !== null) {
-        window.clearTimeout(longPressTimerRef.current);
-        longPressTimerRef.current = null;
-      }
+      longPressTimerRef.current = null;
     }, LONG_PRESS_MS);
   };
 
@@ -131,6 +129,7 @@ export function FileTreeNode({
     const dx = Math.abs(event.clientX - touchStartRef.current.x);
     const dy = Math.abs(event.clientY - touchStartRef.current.y);
     if (dx > MOVE_TOLERANCE_PX || dy > MOVE_TOLERANCE_PX) {
+      longPressTriggeredRef.current = false;
       clearLongPress();
     }
   };
@@ -144,7 +143,10 @@ export function FileTreeNode({
   };
 
   const handlePointerCancel = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === 'touch' && activeTouchPointerIdRef.current === event.pointerId) clearLongPress();
+    if (event.pointerType === 'touch' && activeTouchPointerIdRef.current === event.pointerId) {
+      longPressTriggeredRef.current = false;
+      clearLongPress();
+    }
   };
 
   return (

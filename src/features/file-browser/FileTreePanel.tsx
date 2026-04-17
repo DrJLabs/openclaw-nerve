@@ -469,12 +469,11 @@ export function FileTreePanel({
   const openTouchContextMenu = useCallback((entry: TreeEntry, touchPoint: { x: number; y: number }) => {
     selectFile(entry.path);
     contextMenuSessionIdRef.current += 1;
-    const visualViewport = window.visualViewport;
     setContextMenu({
       agentId: workspaceAgentId,
       sessionId: contextMenuSessionIdRef.current,
-      x: touchPoint.x + 12 + (visualViewport?.offsetLeft ?? 0),
-      y: touchPoint.y + 16 + (visualViewport?.offsetTop ?? 0),
+      x: touchPoint.x + 12,
+      y: touchPoint.y + 16,
       entry,
       source: 'touch',
     });

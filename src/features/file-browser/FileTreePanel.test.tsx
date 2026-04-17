@@ -266,7 +266,7 @@ describe('FileTreePanel', () => {
       fireEvent.pointerUp(row, { pointerType: 'touch', clientX: 210, clientY: 300, pointerId: 1 });
 
       const menu = screen.getByText('Add to chat').closest('.shell-panel') as HTMLElement;
-      expect(menu).toHaveStyle({ left: '252px', top: '352px' });
+      expect(menu).toHaveStyle({ left: '222px', top: '316px' });
     });
 
     it('keeps the follow-up click suppressed after a touch long press on a directory', async () => {
@@ -380,6 +380,33 @@ describe('FileTreePanel', () => {
       act(() => {
         vi.advanceTimersByTime(500);
       });
+
+      expect(screen.queryByText('Add to chat')).not.toBeInTheDocument();
+    });
+
+    it('cancels a triggered long press if the finger moves beyond tolerance before release', async () => {
+      vi.useFakeTimers();
+
+      render(
+        <FileTreePanel
+          workspaceAgentId="agent-a"
+          onOpenFile={mockOnOpenFile}
+          onAddToChat={mockOnAddToChat}
+          addToChatEnabled={true}
+          onRemapOpenPaths={mockOnRemapOpenPaths}
+          onCloseOpenPaths={mockOnCloseOpenPaths}
+          collapsed={false}
+          onCollapseChange={vi.fn()}
+        />
+      );
+
+      const row = screen.getByTitle('package.json');
+      fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 20, clientY: 20, pointerId: 6 });
+      await act(async () => {
+        vi.advanceTimersByTime(500);
+      });
+      fireEvent.pointerMove(row, { pointerType: 'touch', clientX: 40, clientY: 45, pointerId: 6 });
+      fireEvent.pointerUp(row, { pointerType: 'touch', clientX: 40, clientY: 45, pointerId: 6 });
 
       expect(screen.queryByText('Add to chat')).not.toBeInTheDocument();
     });

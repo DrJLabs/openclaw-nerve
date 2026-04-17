@@ -990,7 +990,7 @@ export default function App({ onLogout }: AppProps) {
         />
       )}
 
-      {isCompactLayout && floatingCommandPaletteButtonVisible && !paletteOpen && (
+      {isCompactLayout && floatingCommandPaletteButtonVisible && !paletteOpen && !settingsOpen && viewMode === 'chat' && (
         <button
           type="button"
           onClick={handleOpenPalette}

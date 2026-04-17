@@ -125,6 +125,8 @@ export default function App({ onLogout }: AppProps) {
     toggleEvents, toggleLog, toggleTelemetry,
     setTheme, setFont,
     kanbanVisible,
+    topBarCommandPaletteButtonVisible,
+    floatingCommandPaletteButtonVisible,
   } = useSettings();
 
   // Connection management (extracted hook)
@@ -984,10 +986,11 @@ export default function App({ onLogout }: AppProps) {
           viewMode={viewMode}
           onViewModeChange={setViewMode}
           showKanbanView={kanbanVisible}
+          showCommandPaletteButton={topBarCommandPaletteButtonVisible}
         />
       )}
 
-      {isCompactLayout && !paletteOpen && (
+      {isCompactLayout && floatingCommandPaletteButtonVisible && !paletteOpen && (
         <button
           type="button"
           onClick={handleOpenPalette}

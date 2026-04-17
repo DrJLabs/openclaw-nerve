@@ -34,6 +34,8 @@ const {
 } = vi.hoisted(() => {
   const settingsContext = {
     kanbanVisible: true,
+    topBarCommandPaletteButtonVisible: true,
+    floatingCommandPaletteButtonVisible: true,
   };
   const uploadConfigState = {
     fileReferenceEnabled: true,
@@ -185,6 +187,8 @@ vi.mock('@/contexts/SettingsContext', () => ({
     setTheme: vi.fn(),
     setFont: vi.fn(),
     kanbanVisible: settingsContext.kanbanVisible,
+    topBarCommandPaletteButtonVisible: settingsContext.topBarCommandPaletteButtonVisible,
+    floatingCommandPaletteButtonVisible: settingsContext.floatingCommandPaletteButtonVisible,
   }),
 }));
 
@@ -285,17 +289,21 @@ vi.mock('@/components/TopBar', () => ({
     showKanbanView,
     viewMode,
     onOpenCommandPalette,
+    showCommandPaletteButton = true,
   }: {
     showKanbanView?: boolean;
     viewMode?: string;
     onOpenCommandPalette?: () => void;
+    showCommandPaletteButton?: boolean;
   }) => {
-    topBarRenderSnapshots.push({ showKanbanView, viewMode });
+    topBarRenderSnapshots.push({ showKanbanView, viewMode, showCommandPaletteButton } as { showKanbanView?: boolean; viewMode?: string; showCommandPaletteButton?: boolean });
     return (
       <div>
         <div data-testid="topbar-show-kanban">{String(showKanbanView ?? true)}</div>
         <div data-testid="topbar-view-mode">{viewMode ?? 'chat'}</div>
-        <button type="button" onClick={() => onOpenCommandPalette?.()}>Open Commands From TopBar</button>
+        {showCommandPaletteButton && (
+          <button type="button" onClick={() => onOpenCommandPalette?.()}>Open Commands From TopBar</button>
+        )}
       </div>
     );
   },
@@ -838,6 +846,8 @@ describe('App kanban visibility gating', () => {
   beforeEach(() => {
     localStorage.clear();
     settingsContext.kanbanVisible = true;
+    settingsContext.topBarCommandPaletteButtonVisible = true;
+    settingsContext.floatingCommandPaletteButtonVisible = true;
     topBarRenderSnapshots.length = 0;
   });
 
@@ -869,6 +879,14 @@ describe('App kanban visibility gating', () => {
     expect(screen.getByTestId('command-palette-state')).toHaveTextContent('open');
   });
 
+  it('hides the top-bar command palette trigger when the appearance toggle is disabled', () => {
+    settingsContext.topBarCommandPaletteButtonVisible = false;
+
+    render(<App />);
+
+    expect(screen.queryByRole('button', { name: 'Open Commands From TopBar' })).not.toBeInTheDocument();
+  });
+
   it('shows a mobile-only commands FAB above the composer in compact layout', () => {
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
@@ -894,5 +912,27 @@ describe('App kanban visibility gating', () => {
     fireEvent.click(floatingButton);
 
     expect(screen.getByTestId('command-palette-state')).toHaveTextContent('open');
+  });
+
+  it('hides the mobile commands FAB when the appearance toggle is disabled', () => {
+    settingsContext.floatingCommandPaletteButtonVisible = false;
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: query === '(max-width: 900px)',
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+
+    render(<App />);
+
+    expect(screen.getByRole('button', { name: 'Open Commands From TopBar' })).toBeInTheDocument();
+    expect(screen.queryAllByRole('button', { name: /open command palette/i })).toHaveLength(0);
   });
 });

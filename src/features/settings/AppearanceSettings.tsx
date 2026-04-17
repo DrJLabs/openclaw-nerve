@@ -1,4 +1,4 @@
-import { Monitor, Eye, Type, Activity, ALargeSmall, Code2, Columns3 } from 'lucide-react';
+import { Monitor, Eye, Type, Activity, ALargeSmall, Code2, Columns3, Command } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { InlineSelect } from '@/components/ui/InlineSelect';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -49,6 +49,10 @@ export function AppearanceSettings() {
     toggleLog,
     showHiddenWorkspaceEntries,
     toggleShowHiddenWorkspaceEntries,
+    topBarCommandPaletteButtonVisible,
+    toggleTopBarCommandPaletteButtonVisible,
+    floatingCommandPaletteButtonVisible,
+    toggleFloatingCommandPaletteButtonVisible,
     kanbanVisible,
     toggleKanbanVisible,
     theme,
@@ -207,6 +211,38 @@ export function AppearanceSettings() {
           checked={showHiddenWorkspaceEntries}
           onCheckedChange={toggleShowHiddenWorkspaceEntries}
           aria-label="Toggle hidden workspace entries visibility"
+        />
+      </div>
+
+      {/* Top bar command palette visibility */}
+      <div className="cockpit-row items-start justify-between">
+        <div className="flex items-center gap-3">
+          <Command size={14} className={topBarCommandPaletteButtonVisible ? 'text-primary' : 'text-muted-foreground'} aria-hidden="true" />
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-foreground" id="topbar-commands-label">Show top bar Commands button</span>
+            <span className="text-xs text-muted-foreground">Keep the Commands launcher visible in the top chrome.</span>
+          </div>
+        </div>
+        <Switch
+          checked={topBarCommandPaletteButtonVisible}
+          onCheckedChange={toggleTopBarCommandPaletteButtonVisible}
+          aria-label="Toggle top bar Commands button visibility"
+        />
+      </div>
+
+      {/* Floating command palette visibility */}
+      <div className="cockpit-row items-start justify-between">
+        <div className="flex items-center gap-3">
+          <Command size={14} className={floatingCommandPaletteButtonVisible ? 'text-primary' : 'text-muted-foreground'} aria-hidden="true" />
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-foreground" id="floating-commands-label">Show floating Commands button</span>
+            <span className="text-xs text-muted-foreground">Keep the compact-layout floating Commands launcher visible above the composer.</span>
+          </div>
+        </div>
+        <Switch
+          checked={floatingCommandPaletteButtonVisible}
+          onCheckedChange={toggleFloatingCommandPaletteButtonVisible}
+          aria-label="Toggle floating Commands button visibility"
         />
       </div>
 

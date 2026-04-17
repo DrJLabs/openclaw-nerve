@@ -113,6 +113,8 @@ interface TopBarProps {
   onViewModeChange?: (mode: ViewMode) => void;
   /** Whether the Tasks/Kanban view toggle should be shown. */
   showKanbanView?: boolean;
+  /** Whether the top-bar Commands button should be shown. */
+  showCommandPaletteButton?: boolean;
 }
 
 /**
@@ -137,6 +139,7 @@ export function TopBar({
   viewMode = "chat",
   onViewModeChange,
   showKanbanView = true,
+  showCommandPaletteButton = true,
 }: TopBarProps) {
   const [activePanel, setActivePanel] = useState<PanelId>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -364,16 +367,18 @@ export function TopBar({
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={onOpenCommandPalette}
-            title="Open command palette"
-            aria-label="Open command palette"
-            className={buttonBase}
-          >
-            <Command size={14} aria-hidden="true" />
-            <span>Commands</span>
-          </button>
+          {showCommandPaletteButton && (
+            <button
+              type="button"
+              onClick={onOpenCommandPalette}
+              title="Open command palette"
+              aria-label="Open command palette"
+              className={buttonBase}
+            >
+              <Command size={14} aria-hidden="true" />
+              <span>Commands</span>
+            </button>
+          )}
 
           {/* Usage button */}
           <button

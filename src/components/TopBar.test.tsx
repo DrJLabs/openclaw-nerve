@@ -11,6 +11,7 @@ vi.mock('./NerveLogo', () => ({
 function renderTopBar(props: Partial<React.ComponentProps<typeof TopBar>> = {}) {
   return render(
     <TopBar
+      onOpenCommandPalette={vi.fn()}
       onSettings={vi.fn()}
       agentLogEntries={[]}
       tokenData={null}
@@ -49,5 +50,11 @@ describe('TopBar', () => {
 
     expect(onOpenCommandPalette).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: /open command palette/i })).toHaveTextContent(/commands/i);
+  });
+
+  it('hides the Commands trigger when explicitly disabled', () => {
+    renderTopBar({ onOpenCommandPalette: vi.fn(), showCommandPaletteButton: false });
+
+    expect(screen.queryByRole('button', { name: /open command palette/i })).not.toBeInTheDocument();
   });
 });

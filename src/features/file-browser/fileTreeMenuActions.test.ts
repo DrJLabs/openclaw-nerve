@@ -16,6 +16,13 @@ const trashedFileEntry: TreeEntry = {
   children: null,
 };
 
+const trashPrefixedFileEntry: TreeEntry = {
+  name: '.trash-config',
+  path: '.trash-config',
+  type: 'file',
+  children: null,
+};
+
 describe('buildFileTreeMenuActions', () => {
   it('returns add-to-chat, rename, and trash actions for a normal file', () => {
     const actions = buildFileTreeMenuActions(fileEntry, {
@@ -45,5 +52,19 @@ describe('buildFileTreeMenuActions', () => {
 
     expect(actions.map((action) => action.id)).toEqual(['restore', 'rename']);
     expect(actions.map((action) => action.label)).toEqual(['Restore', 'Rename']);
+  });
+
+  it('does not expose add-to-chat for entries whose path starts with .trash', () => {
+    const actions = buildFileTreeMenuActions(trashPrefixedFileEntry, {
+      addToChatEnabled: true,
+      canAddToChat: true,
+      isCustomWorkspace: false,
+      onRestore: vi.fn(),
+      onAddToChat: vi.fn(),
+      onRename: vi.fn(),
+      onTrash: vi.fn(),
+    });
+
+    expect(actions.map((action) => action.id)).toEqual(['rename', 'trash']);
   });
 });

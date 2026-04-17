@@ -41,7 +41,7 @@ export function buildFileTreeMenuActions(
     });
   }
 
-  if (!inTrash && path !== '.trash' && options.canAddToChat && (entry.type === 'directory' || options.addToChatEnabled)) {
+  if (!path.startsWith('.trash') && options.canAddToChat && (entry.type === 'directory' || options.addToChatEnabled)) {
     actions.push({
       id: 'add-to-chat',
       label: 'Add to chat',

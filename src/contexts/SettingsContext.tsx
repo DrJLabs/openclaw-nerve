@@ -38,6 +38,10 @@ interface SettingsContextValue {
   toggleLog: () => void;
   showHiddenWorkspaceEntries: boolean;
   toggleShowHiddenWorkspaceEntries: () => void;
+  topBarCommandPaletteButtonVisible: boolean;
+  toggleTopBarCommandPaletteButtonVisible: () => void;
+  floatingCommandPaletteButtonVisible: boolean;
+  toggleFloatingCommandPaletteButtonVisible: () => void;
   theme: ThemeName;
   setTheme: (theme: ThemeName) => void;
   font: FontName;
@@ -125,6 +129,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   });
   const [showHiddenWorkspaceEntries, setShowHiddenWorkspaceEntries] = useState(() => {
     return localStorage.getItem('nerve:showHiddenWorkspaceEntries') === 'true';
+  });
+  const [topBarCommandPaletteButtonVisible, setTopBarCommandPaletteButtonVisible] = useState(() => {
+    const saved = localStorage.getItem('nerve:showTopBarCommandPaletteButton');
+    return saved !== 'false';
+  });
+  const [floatingCommandPaletteButtonVisible, setFloatingCommandPaletteButtonVisible] = useState(() => {
+    const saved = localStorage.getItem('nerve:showFloatingCommandPaletteButton');
+    return saved !== 'false';
   });
   const [theme, setThemeState] = useState<ThemeName>(() => {
     const saved = localStorage.getItem('oc-theme') as ThemeName | null;
@@ -308,6 +320,22 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const toggleTopBarCommandPaletteButtonVisible = useCallback(() => {
+    setTopBarCommandPaletteButtonVisible(prev => {
+      const next = !prev;
+      localStorage.setItem('nerve:showTopBarCommandPaletteButton', String(next));
+      return next;
+    });
+  }, []);
+
+  const toggleFloatingCommandPaletteButtonVisible = useCallback(() => {
+    setFloatingCommandPaletteButtonVisible(prev => {
+      const next = !prev;
+      localStorage.setItem('nerve:showFloatingCommandPaletteButton', String(next));
+      return next;
+    });
+  }, []);
+
   const setTheme = useCallback((newTheme: ThemeName) => {
     setThemeState(newTheme);
     localStorage.setItem('oc-theme', newTheme);
@@ -369,6 +397,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     toggleLog,
     showHiddenWorkspaceEntries,
     toggleShowHiddenWorkspaceEntries,
+    topBarCommandPaletteButtonVisible,
+    toggleTopBarCommandPaletteButtonVisible,
+    floatingCommandPaletteButtonVisible,
+    toggleFloatingCommandPaletteButtonVisible,
     theme,
     setTheme,
     font,
@@ -385,7 +417,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     wakeWordEnabled, handleToggleWakeWord, handleWakeWordState,
     liveTranscriptionPreview, toggleLiveTranscriptionPreview,
     speak, panelRatio, setPanelRatio, telemetryVisible, toggleTelemetry,
-    eventsVisible, toggleEvents, logVisible, toggleLog, showHiddenWorkspaceEntries, toggleShowHiddenWorkspaceEntries, theme, setTheme, font, setFont,
+    eventsVisible, toggleEvents, logVisible, toggleLog, showHiddenWorkspaceEntries, toggleShowHiddenWorkspaceEntries,
+    topBarCommandPaletteButtonVisible, toggleTopBarCommandPaletteButtonVisible,
+    floatingCommandPaletteButtonVisible, toggleFloatingCommandPaletteButtonVisible,
+    theme, setTheme, font, setFont,
     fontSize, setFontSize, editorFontSize, setEditorFontSize, kanbanVisible, toggleKanbanVisible,
   ]);
 

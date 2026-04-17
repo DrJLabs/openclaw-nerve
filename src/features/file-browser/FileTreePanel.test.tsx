@@ -239,7 +239,7 @@ describe('FileTreePanel', () => {
       expect(mockOnOpenFile).not.toHaveBeenCalled();
     });
 
-    it('anchors the touch menu at the touch point plus the configured touch offsets', async () => {
+    it('anchors the touch menu with its bottom-left corner at the touch point', async () => {
       vi.useFakeTimers();
       const visualViewportMock = {
         width: 220,
@@ -273,7 +273,7 @@ describe('FileTreePanel', () => {
       fireEvent.pointerUp(row, { pointerType: 'touch', clientX: 210, clientY: 300, pointerId: 1 });
 
       const menu = screen.getByText('Add to chat').closest('.shell-panel') as HTMLElement;
-      expect(menu).toHaveStyle({ left: '222px', top: '316px' });
+      expect(menu).toHaveStyle({ left: '210px', top: '300px' });
     });
 
     it('keeps a touch-opened menu visible when the browser emits a synthetic mousedown after release', async () => {

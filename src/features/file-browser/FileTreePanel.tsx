@@ -24,8 +24,6 @@ const WIDTH_STORAGE_KEY = 'nerve-file-tree-width';
 const MENU_VIEWPORT_PADDING = 8;
 const MENU_CURSOR_OFFSET = 6;
 const MENU_ROW_TOP_OFFSET = 2;
-const TOUCH_MENU_X_OFFSET = 12;
-const TOUCH_MENU_Y_OFFSET = 16;
 const UNDO_TOAST_TTL_MS = 10_000;
 
 /** Load persisted file tree width from localStorage. */
@@ -87,7 +85,14 @@ type FileTreeToastPayload =
 
 type FileTreeToast = FileTreeToastPayload & { agentId: string };
 type ScopedSessionState = { agentId: string; sessionId: number };
-type ScopedContextMenu = ScopedSessionState & { x: number; y: number; entry: TreeEntry; source: 'mouse' | 'touch' };
+type ScopedContextMenu = ScopedSessionState & {
+  x: number;
+  y: number;
+  entry: TreeEntry;
+  source: 'mouse' | 'touch';
+  touchAnchorX?: number;
+  touchAnchorY?: number;
+};
 type ScopedDeleteConfirmation = ScopedSessionState & { entry: TreeEntry };
 type ScopedRenameState = ScopedSessionState & { path: string; value: string };
 type ScopedDragSource = { agentId: string; entry: TreeEntry };
@@ -311,8 +316,15 @@ export function FileTreePanel({
         ? Math.max(minY, panelRect.bottom - height - MENU_VIEWPORT_PADDING)
         : Math.max(MENU_VIEWPORT_PADDING, window.innerHeight - height - MENU_VIEWPORT_PADDING));
 
-    const nextX = Math.min(Math.max(visibleContextMenu.x, minX), maxX);
-    const nextY = Math.min(Math.max(visibleContextMenu.y, minY), maxY);
+    const targetX = visibleContextMenu.source === 'touch'
+      ? (visibleContextMenu.touchAnchorX ?? visibleContextMenu.x)
+      : visibleContextMenu.x;
+    const targetY = visibleContextMenu.source === 'touch'
+      ? ((visibleContextMenu.touchAnchorY ?? visibleContextMenu.y) - height)
+      : visibleContextMenu.y;
+
+    const nextX = Math.min(Math.max(targetX, minX), maxX);
+    const nextY = Math.min(Math.max(targetY, minY), maxY);
 
     if (nextX !== visibleContextMenu.x || nextY !== visibleContextMenu.y) {
       setContextMenu((prev) => (prev ? { ...prev, x: nextX, y: nextY } : prev));
@@ -477,10 +489,12 @@ export function FileTreePanel({
     setContextMenu({
       agentId: workspaceAgentId,
       sessionId: contextMenuSessionIdRef.current,
-      x: touchPoint.x + TOUCH_MENU_X_OFFSET,
-      y: touchPoint.y + TOUCH_MENU_Y_OFFSET,
+      x: touchPoint.x,
+      y: touchPoint.y,
       entry,
       source: 'touch',
+      touchAnchorX: touchPoint.x,
+      touchAnchorY: touchPoint.y,
     });
   }, [selectFile, workspaceAgentId]);
 

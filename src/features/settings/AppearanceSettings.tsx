@@ -226,7 +226,7 @@ export function AppearanceSettings() {
         <Switch
           checked={topBarCommandPaletteButtonVisible}
           onCheckedChange={toggleTopBarCommandPaletteButtonVisible}
-          aria-label="Toggle top bar Commands button visibility"
+          aria-labelledby="topbar-commands-label"
         />
       </div>
 
@@ -242,7 +242,7 @@ export function AppearanceSettings() {
         <Switch
           checked={floatingCommandPaletteButtonVisible}
           onCheckedChange={toggleFloatingCommandPaletteButtonVisible}
-          aria-label="Toggle floating Commands button visibility"
+          aria-labelledby="floating-commands-label"
         />
       </div>
 

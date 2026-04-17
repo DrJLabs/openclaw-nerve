@@ -376,7 +376,7 @@ export function TopBar({
               className={buttonBase}
             >
               <Command size={14} aria-hidden="true" />
-              <span>Commands</span>
+              <span className="hidden sm:inline">Commands</span>
             </button>
           )}
 

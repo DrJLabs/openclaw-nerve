@@ -681,7 +681,7 @@ export function FileTreePanel({
   const menuActions = menuEntry
     ? buildFileTreeMenuActions(menuEntry, {
         addToChatEnabled,
-        canAddToChat: Boolean(onAddToChat) && menuEntry.path !== '.trash' && !menuEntry.path.startsWith('.trash/'),
+        canAddToChat: Boolean(onAddToChat),
         isCustomWorkspace: Boolean(workspaceInfo?.isCustomWorkspace),
         onRestore: () => { void restoreEntry(menuEntry.path); },
         onAddToChat: () => {

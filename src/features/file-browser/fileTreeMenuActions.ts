@@ -39,10 +39,9 @@ export function buildFileTreeMenuActions(
       icon: RotateCcw,
       onSelect: options.onRestore,
     });
-    return actions;
   }
 
-  if (path !== '.trash' && options.canAddToChat && (entry.type === 'directory' || options.addToChatEnabled)) {
+  if (!inTrash && path !== '.trash' && options.canAddToChat && (entry.type === 'directory' || options.addToChatEnabled)) {
     actions.push({
       id: 'add-to-chat',
       label: 'Add to chat',

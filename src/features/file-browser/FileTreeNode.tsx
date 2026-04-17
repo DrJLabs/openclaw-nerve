@@ -110,7 +110,7 @@ export function FileTreeNode({
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== 'touch' || isRenaming) return;
+    if (event.pointerType !== 'touch' || isRenaming || !onTouchLongPress) return;
     longPressTriggeredRef.current = false;
     touchStartRef.current = { x: event.clientX, y: event.clientY };
     const anchorRect = event.currentTarget.getBoundingClientRect();

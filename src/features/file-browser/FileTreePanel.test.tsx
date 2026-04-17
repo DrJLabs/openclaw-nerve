@@ -258,6 +258,35 @@ describe('FileTreePanel', () => {
       expect(defaultMockHook.toggleDirectory).not.toHaveBeenCalled();
     });
 
+    it('clears stale long-press suppression on the next non-touch pointerdown', async () => {
+      vi.useFakeTimers();
+
+      render(
+        <FileTreePanel
+          workspaceAgentId="agent-a"
+          onOpenFile={mockOnOpenFile}
+          onAddToChat={mockOnAddToChat}
+          addToChatEnabled={true}
+          onRemapOpenPaths={mockOnRemapOpenPaths}
+          onCloseOpenPaths={mockOnCloseOpenPaths}
+          collapsed={false}
+          onCollapseChange={vi.fn()}
+        />
+      );
+
+      const row = screen.getByTitle('src');
+      fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 24, clientY: 32 });
+      await act(async () => {
+        vi.advanceTimersByTime(500);
+      });
+      fireEvent.contextMenu(row, new MouseEvent('contextmenu', { bubbles: true }));
+
+      fireEvent.pointerDown(row, { pointerType: 'mouse', clientX: 24, clientY: 32 });
+      fireEvent.click(row);
+
+      expect(defaultMockHook.toggleDirectory).toHaveBeenCalledTimes(1);
+    });
+
     it('cancels touch long press when the pointer moves beyond tolerance', () => {
       vi.useFakeTimers();
 

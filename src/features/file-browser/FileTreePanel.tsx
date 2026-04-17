@@ -817,7 +817,7 @@ export function FileTreePanel({
               return (
                 <button
                   key={action.id}
-                  className={`w-full px-3 py-1.5 text-left text-xs flex items-center gap-2 ${
+                  className={`w-full px-3 py-2.5 text-left text-xs flex items-center gap-2 ${
                     action.destructive
                       ? 'text-destructive hover:bg-destructive/10'
                       : 'text-foreground hover:bg-muted/60'

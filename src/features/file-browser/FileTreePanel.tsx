@@ -85,7 +85,7 @@ type FileTreeToastPayload =
 
 type FileTreeToast = FileTreeToastPayload & { agentId: string };
 type ScopedSessionState = { agentId: string; sessionId: number };
-type ScopedContextMenu = ScopedSessionState & { x: number; y: number; entry: TreeEntry };
+type ScopedContextMenu = ScopedSessionState & { x: number; y: number; entry: TreeEntry; source: 'mouse' | 'touch' };
 type ScopedDeleteConfirmation = ScopedSessionState & { entry: TreeEntry };
 type ScopedRenameState = ScopedSessionState & { path: string; value: string };
 type ScopedDragSource = { agentId: string; entry: TreeEntry };
@@ -284,15 +284,28 @@ export function FileTreePanel({
     const width = menuEl.offsetWidth;
     const height = menuEl.offsetHeight;
     const panelRect = panelRef.current?.getBoundingClientRect();
+    const visualViewport = window.visualViewport;
+    const viewportLeft = visualViewport?.offsetLeft ?? 0;
+    const viewportTop = visualViewport?.offsetTop ?? 0;
+    const viewportWidth = visualViewport?.width ?? window.innerWidth;
+    const viewportHeight = visualViewport?.height ?? window.innerHeight;
 
-    const minX = panelRect ? panelRect.left + MENU_VIEWPORT_PADDING : MENU_VIEWPORT_PADDING;
-    const minY = panelRect ? panelRect.top + MENU_VIEWPORT_PADDING : MENU_VIEWPORT_PADDING;
-    const maxX = panelRect
-      ? Math.max(minX, panelRect.right - width - MENU_VIEWPORT_PADDING)
-      : Math.max(MENU_VIEWPORT_PADDING, window.innerWidth - width - MENU_VIEWPORT_PADDING);
-    const maxY = panelRect
-      ? Math.max(minY, panelRect.bottom - height - MENU_VIEWPORT_PADDING)
-      : Math.max(MENU_VIEWPORT_PADDING, window.innerHeight - height - MENU_VIEWPORT_PADDING);
+    const minX = visibleContextMenu.source === 'touch'
+      ? viewportLeft + MENU_VIEWPORT_PADDING
+      : (panelRect ? panelRect.left + MENU_VIEWPORT_PADDING : MENU_VIEWPORT_PADDING);
+    const minY = visibleContextMenu.source === 'touch'
+      ? viewportTop + MENU_VIEWPORT_PADDING
+      : (panelRect ? panelRect.top + MENU_VIEWPORT_PADDING : MENU_VIEWPORT_PADDING);
+    const maxX = visibleContextMenu.source === 'touch'
+      ? Math.max(minX, viewportLeft + viewportWidth - width - MENU_VIEWPORT_PADDING)
+      : (panelRect
+        ? Math.max(minX, panelRect.right - width - MENU_VIEWPORT_PADDING)
+        : Math.max(MENU_VIEWPORT_PADDING, window.innerWidth - width - MENU_VIEWPORT_PADDING));
+    const maxY = visibleContextMenu.source === 'touch'
+      ? Math.max(minY, viewportTop + viewportHeight - height - MENU_VIEWPORT_PADDING)
+      : (panelRect
+        ? Math.max(minY, panelRect.bottom - height - MENU_VIEWPORT_PADDING)
+        : Math.max(MENU_VIEWPORT_PADDING, window.innerHeight - height - MENU_VIEWPORT_PADDING));
 
     const nextX = Math.min(Math.max(visibleContextMenu.x, minX), maxX);
     const nextY = Math.min(Math.max(visibleContextMenu.y, minY), maxY);
@@ -449,18 +462,21 @@ export function FileTreePanel({
       x: nextX,
       y: nextY,
       entry,
+      source: 'mouse',
     });
   }, [selectFile, workspaceAgentId]);
 
-  const openTouchContextMenu = useCallback((entry: TreeEntry, anchorRect: DOMRect) => {
+  const openTouchContextMenu = useCallback((entry: TreeEntry, touchPoint: { x: number; y: number }) => {
     selectFile(entry.path);
     contextMenuSessionIdRef.current += 1;
+    const visualViewport = window.visualViewport;
     setContextMenu({
       agentId: workspaceAgentId,
       sessionId: contextMenuSessionIdRef.current,
-      x: anchorRect.left + MENU_CURSOR_OFFSET,
-      y: anchorRect.top + MENU_ROW_TOP_OFFSET,
+      x: touchPoint.x + 12 + (visualViewport?.offsetLeft ?? 0),
+      y: touchPoint.y + 16 + (visualViewport?.offsetTop ?? 0),
       entry,
+      source: 'touch',
     });
   }, [selectFile, workspaceAgentId]);
 
@@ -808,8 +824,14 @@ export function FileTreePanel({
       {visibleContextMenu && menuEntry && (
         <div
           ref={contextMenuRef}
-          className="shell-panel fixed z-50 min-w-[180px] rounded-2xl py-1.5"
-          style={{ left: visibleContextMenu.x, top: visibleContextMenu.y }}
+          className="shell-panel fixed z-50 min-w-[180px] rounded-2xl py-1.5 select-none touch-manipulation"
+          style={{
+            left: visibleContextMenu.x,
+            top: visibleContextMenu.y,
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            WebkitTouchCallout: 'none',
+          }}
         >
           {menuActions.length > 0 ? (
             menuActions.map((action) => {

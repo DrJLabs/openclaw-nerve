@@ -203,7 +203,7 @@ describe('FileTreePanel', () => {
   });
 
   describe('context menu add to chat', () => {
-    it('opens the shared row menu on touch long press without triggering file open', async () => {
+    it('opens the shared row menu on touch release after a long press without triggering file open', async () => {
       vi.useFakeTimers();
 
       render(
@@ -220,13 +220,53 @@ describe('FileTreePanel', () => {
       );
 
       const row = screen.getByTitle('package.json');
-      fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 24, clientY: 32 });
+      fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 24, clientY: 32, pointerId: 0 });
       await act(async () => {
         vi.advanceTimersByTime(500);
       });
+      expect(screen.queryByText('Add to chat')).not.toBeInTheDocument();
+
+      fireEvent.pointerUp(row, { pointerType: 'touch', clientX: 24, clientY: 32, pointerId: 0 });
 
       expect(screen.getByText('Add to chat')).toBeInTheDocument();
       expect(mockOnOpenFile).not.toHaveBeenCalled();
+    });
+
+    it('anchors the touch menu using the touch point and visual viewport offsets', async () => {
+      vi.useFakeTimers();
+      const visualViewportMock = {
+        width: 220,
+        height: 280,
+        offsetLeft: 40,
+        offsetTop: 80,
+      };
+      Object.defineProperty(window, 'visualViewport', {
+        configurable: true,
+        value: visualViewportMock,
+      });
+
+      render(
+        <FileTreePanel
+          workspaceAgentId="agent-a"
+          onOpenFile={mockOnOpenFile}
+          onAddToChat={mockOnAddToChat}
+          addToChatEnabled={true}
+          onRemapOpenPaths={mockOnRemapOpenPaths}
+          onCloseOpenPaths={mockOnCloseOpenPaths}
+          collapsed={false}
+          onCollapseChange={vi.fn()}
+        />
+      );
+
+      const row = screen.getByTitle('package.json');
+      fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 210, clientY: 300, pointerId: 1 });
+      await act(async () => {
+        vi.advanceTimersByTime(500);
+      });
+      fireEvent.pointerUp(row, { pointerType: 'touch', clientX: 210, clientY: 300, pointerId: 1 });
+
+      const menu = screen.getByText('Add to chat').closest('.shell-panel') as HTMLElement;
+      expect(menu).toHaveStyle({ left: '252px', top: '352px' });
     });
 
     it('keeps the follow-up click suppressed after a touch long press on a directory', async () => {
@@ -246,11 +286,12 @@ describe('FileTreePanel', () => {
       );
 
       const row = screen.getByTitle('src');
-      fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 24, clientY: 32 });
+      fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 24, clientY: 32, pointerId: 2 });
       await act(async () => {
         vi.advanceTimersByTime(500);
       });
 
+      fireEvent.pointerUp(row, { pointerType: 'touch', clientX: 24, clientY: 32, pointerId: 2 });
       fireEvent.contextMenu(row, new MouseEvent('contextmenu', { bubbles: true }));
       fireEvent.click(row);
 
@@ -275,11 +316,11 @@ describe('FileTreePanel', () => {
       );
 
       const row = screen.getByTitle('src');
-      fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 24, clientY: 32 });
+      fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 24, clientY: 32, pointerId: 3 });
       await act(async () => {
         vi.advanceTimersByTime(500);
       });
-      fireEvent.contextMenu(row, new MouseEvent('contextmenu', { bubbles: true }));
+      fireEvent.pointerCancel(row, { pointerType: 'touch', pointerId: 3 });
 
       fireEvent.pointerDown(row, { pointerType: 'mouse', clientX: 24, clientY: 32 });
       fireEvent.click(row);
@@ -304,8 +345,8 @@ describe('FileTreePanel', () => {
       );
 
       const row = screen.getByTitle('package.json');
-      fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 10, clientY: 10 });
-      fireEvent.pointerMove(row, { pointerType: 'touch', clientX: 40, clientY: 40 });
+      fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 10, clientY: 10, pointerId: 4 });
+      fireEvent.pointerMove(row, { pointerType: 'touch', clientX: 40, clientY: 40, pointerId: 4 });
       act(() => {
         vi.advanceTimersByTime(500);
       });

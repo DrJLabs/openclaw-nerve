@@ -12,7 +12,7 @@ interface FileTreeNodeProps {
   loadingPaths: Set<string>;
   onToggleDir: (path: string) => void;
   onOpenFile: (path: string) => void;
-  onTouchLongPress?: (entry: TreeEntry, anchorRect: DOMRect) => void;
+  onTouchLongPress?: (entry: TreeEntry, touchPoint: { x: number; y: number }) => void;
   onSelect: (path: string) => void;
   onContextMenu: (entry: TreeEntry, event: React.MouseEvent) => void;
   dragSourcePath: string | null;
@@ -55,6 +55,7 @@ export function FileTreeNode({
 }: FileTreeNodeProps) {
   const longPressTimerRef = useRef<number | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const activeTouchPointerIdRef = useRef<number | null>(null);
   const longPressTriggeredRef = useRef(false);
   const LONG_PRESS_MS = 450;
   const MOVE_TOLERANCE_PX = 10;
@@ -74,6 +75,7 @@ export function FileTreeNode({
       longPressTimerRef.current = null;
     }
     touchStartRef.current = null;
+    activeTouchPointerIdRef.current = null;
   };
 
   useEffect(() => () => clearLongPress(), []);
@@ -113,17 +115,19 @@ export function FileTreeNode({
     longPressTriggeredRef.current = false;
     clearLongPress();
     if (event.pointerType !== 'touch' || isRenaming || !onTouchLongPress) return;
+    activeTouchPointerIdRef.current = event.pointerId;
     touchStartRef.current = { x: event.clientX, y: event.clientY };
-    const anchorRect = event.currentTarget.getBoundingClientRect();
     longPressTimerRef.current = window.setTimeout(() => {
       longPressTriggeredRef.current = true;
-      onTouchLongPress?.(entry, anchorRect);
-      clearLongPress();
+      if (longPressTimerRef.current !== null) {
+        window.clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
     }, LONG_PRESS_MS);
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== 'touch' || !touchStartRef.current) return;
+    if (event.pointerType !== 'touch' || !touchStartRef.current || activeTouchPointerIdRef.current !== event.pointerId) return;
     const dx = Math.abs(event.clientX - touchStartRef.current.x);
     const dy = Math.abs(event.clientY - touchStartRef.current.y);
     if (dx > MOVE_TOLERANCE_PX || dy > MOVE_TOLERANCE_PX) {
@@ -132,11 +136,15 @@ export function FileTreeNode({
   };
 
   const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === 'touch') clearLongPress();
+    if (event.pointerType !== 'touch' || activeTouchPointerIdRef.current !== event.pointerId) return;
+    if (longPressTriggeredRef.current && onTouchLongPress) {
+      onTouchLongPress(entry, { x: event.clientX, y: event.clientY });
+    }
+    clearLongPress();
   };
 
   const handlePointerCancel = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === 'touch') clearLongPress();
+    if (event.pointerType === 'touch' && activeTouchPointerIdRef.current === event.pointerId) clearLongPress();
   };
 
   return (

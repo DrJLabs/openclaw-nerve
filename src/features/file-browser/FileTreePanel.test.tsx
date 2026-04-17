@@ -84,6 +84,7 @@ const defaultMockHook = {
 
 describe('FileTreePanel', () => {
   let mockUseFileTree: vi.MockedFunction<typeof useFileTree>;
+  const originalVisualViewportDescriptor = Object.getOwnPropertyDescriptor(window, 'visualViewport');
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -105,6 +106,12 @@ describe('FileTreePanel', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    if (originalVisualViewportDescriptor) {
+      Object.defineProperty(window, 'visualViewport', originalVisualViewportDescriptor);
+    } else {
+      // @ts-expect-error test cleanup for ad-hoc property definition
+      delete window.visualViewport;
+    }
     vi.restoreAllMocks();
   });
 
@@ -232,7 +239,7 @@ describe('FileTreePanel', () => {
       expect(mockOnOpenFile).not.toHaveBeenCalled();
     });
 
-    it('anchors the touch menu using the touch point and visual viewport offsets', async () => {
+    it('anchors the touch menu at the touch point plus the configured touch offsets', async () => {
       vi.useFakeTimers();
       const visualViewportMock = {
         width: 220,
@@ -267,6 +274,33 @@ describe('FileTreePanel', () => {
 
       const menu = screen.getByText('Add to chat').closest('.shell-panel') as HTMLElement;
       expect(menu).toHaveStyle({ left: '222px', top: '316px' });
+    });
+
+    it('keeps a touch-opened menu visible when the browser emits a synthetic mousedown after release', async () => {
+      vi.useFakeTimers();
+
+      render(
+        <FileTreePanel
+          workspaceAgentId="agent-a"
+          onOpenFile={mockOnOpenFile}
+          onAddToChat={mockOnAddToChat}
+          addToChatEnabled={true}
+          onRemapOpenPaths={mockOnRemapOpenPaths}
+          onCloseOpenPaths={mockOnCloseOpenPaths}
+          collapsed={false}
+          onCollapseChange={vi.fn()}
+        />
+      );
+
+      const row = screen.getByTitle('package.json');
+      fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 24, clientY: 32, pointerId: 7 });
+      await act(async () => {
+        vi.advanceTimersByTime(500);
+      });
+      fireEvent.pointerUp(row, { pointerType: 'touch', clientX: 24, clientY: 32, pointerId: 7 });
+      fireEvent.mouseDown(document.body);
+
+      expect(screen.getByText('Add to chat')).toBeInTheDocument();
     });
 
     it('keeps the follow-up click suppressed after a touch long press on a directory', async () => {

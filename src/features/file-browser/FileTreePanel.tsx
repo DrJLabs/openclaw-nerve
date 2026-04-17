@@ -24,6 +24,8 @@ const WIDTH_STORAGE_KEY = 'nerve-file-tree-width';
 const MENU_VIEWPORT_PADDING = 8;
 const MENU_CURSOR_OFFSET = 6;
 const MENU_ROW_TOP_OFFSET = 2;
+const TOUCH_MENU_X_OFFSET = 12;
+const TOUCH_MENU_Y_OFFSET = 16;
 const UNDO_TOAST_TTL_MS = 10_000;
 
 /** Load persisted file tree width from localStorage. */
@@ -152,6 +154,7 @@ export function FileTreePanel({
   const [contextMenu, setContextMenu] = useState<ScopedContextMenu | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const contextMenuSessionIdRef = useRef(0);
+  const suppressMouseDownUntilRef = useRef(0);
 
   const [renameState, setRenameState] = useState<ScopedRenameState | null>(null);
   const renameSessionIdRef = useRef(0);
@@ -257,6 +260,7 @@ export function FileTreePanel({
     if (!visibleContextMenu) return;
 
     const onMouseDown = (event: MouseEvent) => {
+      if (visibleContextMenu.source === 'touch' && Date.now() < suppressMouseDownUntilRef.current) return;
       const target = event.target as Node;
       if (contextMenuRef.current?.contains(target)) return;
       setContextMenu(null);
@@ -469,11 +473,12 @@ export function FileTreePanel({
   const openTouchContextMenu = useCallback((entry: TreeEntry, touchPoint: { x: number; y: number }) => {
     selectFile(entry.path);
     contextMenuSessionIdRef.current += 1;
+    suppressMouseDownUntilRef.current = Date.now() + 500;
     setContextMenu({
       agentId: workspaceAgentId,
       sessionId: contextMenuSessionIdRef.current,
-      x: touchPoint.x + 12,
-      y: touchPoint.y + 16,
+      x: touchPoint.x + TOUCH_MENU_X_OFFSET,
+      y: touchPoint.y + TOUCH_MENU_Y_OFFSET,
       entry,
       source: 'touch',
     });

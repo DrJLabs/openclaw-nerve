@@ -43,7 +43,7 @@ describe('buildFileTreeMenuActions', () => {
       onTrash: vi.fn(),
     });
 
-    expect(actions.map((action) => action.id)).toEqual(['restore', 'rename', 'trash']);
-    expect(actions.map((action) => action.label)).toEqual(['Restore', 'Rename', 'Move to Trash']);
+    expect(actions.map((action) => action.id)).toEqual(['restore', 'rename']);
+    expect(actions.map((action) => action.label)).toEqual(['Restore', 'Rename']);
   });
 });

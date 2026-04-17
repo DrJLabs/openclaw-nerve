@@ -59,7 +59,7 @@ export function buildFileTreeMenuActions(
     });
   }
 
-  if (path !== '.trash') {
+  if (!inTrash && path !== '.trash') {
     actions.push({
       id: 'trash',
       label: options.isCustomWorkspace ? 'Permanently Delete' : 'Move to Trash',

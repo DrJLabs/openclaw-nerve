@@ -111,6 +111,7 @@ export function FileTreeNode({
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.pointerType !== 'touch' || isRenaming || !onTouchLongPress) return;
+    clearLongPress();
     longPressTriggeredRef.current = false;
     touchStartRef.current = { x: event.clientX, y: event.clientY };
     const anchorRect = event.currentTarget.getBoundingClientRect();
@@ -157,7 +158,6 @@ export function FileTreeNode({
         onContextMenu={(e) => {
           if (longPressTriggeredRef.current) {
             e.preventDefault();
-            longPressTriggeredRef.current = false;
             return;
           }
           onContextMenu(entry, e);

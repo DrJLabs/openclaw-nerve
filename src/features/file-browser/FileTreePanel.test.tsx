@@ -229,6 +229,35 @@ describe('FileTreePanel', () => {
       expect(mockOnOpenFile).not.toHaveBeenCalled();
     });
 
+    it('keeps the follow-up click suppressed after a touch long press on a directory', async () => {
+      vi.useFakeTimers();
+
+      render(
+        <FileTreePanel
+          workspaceAgentId="agent-a"
+          onOpenFile={mockOnOpenFile}
+          onAddToChat={mockOnAddToChat}
+          addToChatEnabled={true}
+          onRemapOpenPaths={mockOnRemapOpenPaths}
+          onCloseOpenPaths={mockOnCloseOpenPaths}
+          collapsed={false}
+          onCollapseChange={vi.fn()}
+        />
+      );
+
+      const row = screen.getByTitle('src');
+      fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 24, clientY: 32 });
+      await act(async () => {
+        vi.advanceTimersByTime(500);
+      });
+
+      fireEvent.contextMenu(row, new MouseEvent('contextmenu', { bubbles: true }));
+      fireEvent.click(row);
+
+      expect(screen.getByText('Add to chat')).toBeInTheDocument();
+      expect(defaultMockHook.toggleDirectory).not.toHaveBeenCalled();
+    });
+
     it('cancels touch long press when the pointer moves beyond tolerance', () => {
       vi.useFakeTimers();
 

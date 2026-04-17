@@ -6,8 +6,9 @@
  */
 
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { PanelLeftClose, RefreshCw, Pencil, Trash2, RotateCcw, X, Paperclip } from 'lucide-react';
+import { PanelLeftClose, RefreshCw, X } from 'lucide-react';
 import { FileTreeNode } from './FileTreeNode';
+import { buildFileTreeMenuActions } from './fileTreeMenuActions';
 import { useFileTree } from './hooks/useFileTree';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -669,22 +670,30 @@ export function FileTreePanel({
     return null;
   }
 
-  const menuEntry = visibleContextMenu?.entry;
-  const menuPath = menuEntry?.path || '';
-  const menuInTrash = isTrashItemPath(menuPath);
-  const showRestore = menuInTrash;
-  const showAddToChat = Boolean(
-    onAddToChat
-    && menuEntry
-    && !menuPath.startsWith('.trash')
-    && menuPath !== '.trash'
-    && (
-      menuEntry.type === 'directory'
-      || (menuEntry.type === 'file' && addToChatEnabled)
-    ),
-  );
-  const showRename = Boolean(menuEntry && menuPath !== '.trash');
-  const showTrashAction = Boolean(menuEntry && !menuPath.startsWith('.trash') && menuPath !== '.trash');
+  const menuEntry = visibleContextMenu?.entry ?? null;
+  const menuActions = menuEntry
+    ? buildFileTreeMenuActions(menuEntry, {
+        addToChatEnabled,
+        canAddToChat: Boolean(onAddToChat) && menuEntry.path !== '.trash' && !menuEntry.path.startsWith('.trash/'),
+        isCustomWorkspace: Boolean(workspaceInfo?.isCustomWorkspace),
+        onRestore: () => { void restoreEntry(menuEntry.path); },
+        onAddToChat: () => {
+          const itemKind = menuEntry.type === 'directory' ? 'directory' : 'file';
+          void Promise
+            .resolve(onAddToChat?.(menuEntry.path, itemKind, workspaceAgentId))
+            .catch((error: unknown) => {
+              const fallbackMessage = itemKind === 'directory'
+                ? 'Failed to add directory to chat'
+                : 'Failed to add file to chat';
+              const message = error instanceof Error ? error.message : fallbackMessage;
+              console.error('[FileTreePanel] add-to-chat failed:', error);
+              showToastForAgent(workspaceAgentId, { type: 'error', message }, 4500);
+            });
+        },
+        onRename: () => startRename(menuEntry),
+        onTrash: () => { void moveToTrash(menuEntry); },
+      })
+    : [];
 
   return (
     <div
@@ -794,63 +803,28 @@ export function FileTreePanel({
           className="shell-panel fixed z-50 min-w-[180px] rounded-2xl py-1.5"
           style={{ left: visibleContextMenu.x, top: visibleContextMenu.y }}
         >
-          {showRestore && (
-            <button
-              className="w-full px-3 py-1.5 text-left text-xs text-foreground hover:bg-muted/60 flex items-center gap-2"
-              onClick={() => {
-                setContextMenu(null);
-                void restoreEntry(menuEntry.path);
-              }}
-            >
-              <RotateCcw size={12} />
-              Restore
-            </button>
-          )}
-
-          {showAddToChat && (
-            <button
-              className="w-full px-3 py-1.5 text-left text-xs text-foreground hover:bg-muted/60 flex items-center gap-2"
-              onClick={() => {
-                setContextMenu(null);
-                const itemKind = menuEntry.type === 'directory' ? 'directory' : 'file';
-                void Promise
-                  .resolve(onAddToChat?.(menuEntry.path, itemKind, workspaceAgentId))
-                  .catch((error: unknown) => {
-                    const fallbackMessage = itemKind === 'directory'
-                      ? 'Failed to add directory to chat'
-                      : 'Failed to add file to chat';
-                    const message = error instanceof Error ? error.message : fallbackMessage;
-                    console.error('[FileTreePanel] add-to-chat failed:', error);
-                    showToastForAgent(workspaceAgentId, { type: 'error', message }, 4500);
-                  });
-              }}
-            >
-              <Paperclip size={12} />
-              Add to chat
-            </button>
-          )}
-
-          {showRename && (
-            <button
-              className="w-full px-3 py-1.5 text-left text-xs text-foreground hover:bg-muted/60 flex items-center gap-2"
-              onClick={() => startRename(menuEntry)}
-            >
-              <Pencil size={12} />
-              Rename
-            </button>
-          )}
-
-          {showTrashAction && (
-            <button
-              className="w-full px-3 py-1.5 text-left text-xs text-destructive hover:bg-destructive/10 flex items-center gap-2"
-              onClick={() => { void moveToTrash(menuEntry); }}
-            >
-              <Trash2 size={12} />
-              {workspaceInfo?.isCustomWorkspace ? 'Permanently Delete' : 'Move to Trash'}
-            </button>
-          )}
-
-          {!showRestore && !showAddToChat && !showRename && !showTrashAction && (
+          {menuActions.length > 0 ? (
+            menuActions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <button
+                  key={action.id}
+                  className={`w-full px-3 py-1.5 text-left text-xs flex items-center gap-2 ${
+                    action.destructive
+                      ? 'text-destructive hover:bg-destructive/10'
+                      : 'text-foreground hover:bg-muted/60'
+                  }`}
+                  onClick={() => {
+                    setContextMenu(null);
+                    action.onSelect();
+                  }}
+                >
+                  <Icon size={12} />
+                  {action.label}
+                </button>
+              );
+            })
+          ) : (
             <div className="px-3 py-1.5 text-xs text-muted-foreground">
               No actions
             </div>

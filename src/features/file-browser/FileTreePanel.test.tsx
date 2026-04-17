@@ -202,6 +202,27 @@ describe('FileTreePanel', () => {
   });
 
   describe('context menu add to chat', () => {
+    it('renders menu actions from the shared action builder for files', async () => {
+      render(
+        <FileTreePanel
+          workspaceAgentId="agent-a"
+          onOpenFile={mockOnOpenFile}
+          onAddToChat={mockOnAddToChat}
+          addToChatEnabled={true}
+          onRemapOpenPaths={mockOnRemapOpenPaths}
+          onCloseOpenPaths={mockOnCloseOpenPaths}
+          collapsed={false}
+          onCollapseChange={vi.fn()}
+        />
+      );
+
+      fireEvent.contextMenu(screen.getByText('package.json'), new MouseEvent('contextmenu', { bubbles: true }));
+
+      expect(await screen.findByText('Add to chat')).toBeInTheDocument();
+      expect(screen.getByText('Rename')).toBeInTheDocument();
+      expect(screen.getByText('Move to Trash')).toBeInTheDocument();
+    });
+
     it('shows "Add to chat" for files when file references are enabled, and calls the callback with the workspace agent', async () => {
       render(
         <FileTreePanel

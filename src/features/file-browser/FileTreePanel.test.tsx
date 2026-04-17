@@ -328,6 +328,36 @@ describe('FileTreePanel', () => {
       expect(defaultMockHook.toggleDirectory).toHaveBeenCalledTimes(1);
     });
 
+    it('does not leave the next interaction suppressed when contextmenu fires without a follow-up click', async () => {
+      vi.useFakeTimers();
+
+      render(
+        <FileTreePanel
+          workspaceAgentId="agent-a"
+          onOpenFile={mockOnOpenFile}
+          onAddToChat={mockOnAddToChat}
+          addToChatEnabled={true}
+          onRemapOpenPaths={mockOnRemapOpenPaths}
+          onCloseOpenPaths={mockOnCloseOpenPaths}
+          collapsed={false}
+          onCollapseChange={vi.fn()}
+        />
+      );
+
+      const row = screen.getByTitle('src');
+      fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 24, clientY: 32, pointerId: 5 });
+      await act(async () => {
+        vi.advanceTimersByTime(500);
+      });
+      fireEvent.pointerUp(row, { pointerType: 'touch', clientX: 24, clientY: 32, pointerId: 5 });
+      fireEvent.contextMenu(row, new MouseEvent('contextmenu', { bubbles: true }));
+
+      fireEvent.pointerDown(row, { pointerType: 'mouse', clientX: 24, clientY: 32 });
+      fireEvent.click(row);
+
+      expect(defaultMockHook.toggleDirectory).toHaveBeenCalledTimes(1);
+    });
+
     it('cancels touch long press when the pointer moves beyond tolerance', () => {
       vi.useFakeTimers();
 

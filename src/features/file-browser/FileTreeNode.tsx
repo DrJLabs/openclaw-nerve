@@ -155,7 +155,12 @@ export function FileTreeNode({
         } ${entry.binary && !canOpen ? 'opacity-50' : ''} ${
           isDropTarget ? 'bg-primary/15 ring-1 ring-primary/40' : ''
         } ${isDragSource ? 'opacity-50' : ''}`}
-        style={{ paddingLeft: depth * 16 + 8, WebkitTouchCallout: 'none' as const }}
+        style={{
+          paddingLeft: depth * 16 + 8,
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          WebkitTouchCallout: 'none' as const,
+        }}
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
         onKeyDown={handleKeyDown}

@@ -46,11 +46,6 @@ function basename(filePath: string): string {
   return idx === -1 ? filePath : filePath.slice(idx + 1);
 }
 
-/** Check if a path points to a trash item. */
-function isTrashItemPath(filePath: string): boolean {
-  return filePath.startsWith('.trash/') && filePath !== '.trash';
-}
-
 export interface FileTreeChangeEvent {
   path: string;
   agentId: string;

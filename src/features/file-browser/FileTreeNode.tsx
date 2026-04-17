@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { ChevronRight, ChevronDown, Loader2 } from 'lucide-react';
 import { FileIcon, FolderIcon } from './utils/fileIcons';
 import { isImageFile, isPdfFile } from './utils/fileTypes';
@@ -11,6 +12,7 @@ interface FileTreeNodeProps {
   loadingPaths: Set<string>;
   onToggleDir: (path: string) => void;
   onOpenFile: (path: string) => void;
+  onTouchLongPress?: (entry: TreeEntry, anchorRect: DOMRect) => void;
   onSelect: (path: string) => void;
   onContextMenu: (entry: TreeEntry, event: React.MouseEvent) => void;
   dragSourcePath: string | null;
@@ -35,6 +37,7 @@ export function FileTreeNode({
   loadingPaths,
   onToggleDir,
   onOpenFile,
+  onTouchLongPress,
   onSelect,
   onContextMenu,
   dragSourcePath,
@@ -50,6 +53,12 @@ export function FileTreeNode({
   onRenameCommit,
   onRenameCancel,
 }: FileTreeNodeProps) {
+  const longPressTimerRef = useRef<number | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const longPressTriggeredRef = useRef(false);
+  const LONG_PRESS_MS = 450;
+  const MOVE_TOLERANCE_PX = 10;
+
   const isDir = entry.type === 'directory';
   const isExpanded = expandedPaths.has(entry.path);
   const isSelected = selectedPath === entry.path;
@@ -59,7 +68,21 @@ export function FileTreeNode({
   const isDropTarget = isDir && dropTargetPath === entry.path;
   const isDragSource = dragSourcePath === entry.path;
 
+  const clearLongPress = () => {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    touchStartRef.current = null;
+  };
+
+  useEffect(() => () => clearLongPress(), []);
+
   const handleClick = () => {
+    if (longPressTriggeredRef.current) {
+      longPressTriggeredRef.current = false;
+      return;
+    }
     if (isRenaming) return;
     onSelect(entry.path);
     if (isDir) {
@@ -86,6 +109,35 @@ export function FileTreeNode({
     }
   };
 
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== 'touch' || isRenaming) return;
+    longPressTriggeredRef.current = false;
+    touchStartRef.current = { x: event.clientX, y: event.clientY };
+    const anchorRect = event.currentTarget.getBoundingClientRect();
+    longPressTimerRef.current = window.setTimeout(() => {
+      longPressTriggeredRef.current = true;
+      onTouchLongPress?.(entry, anchorRect);
+      clearLongPress();
+    }, LONG_PRESS_MS);
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== 'touch' || !touchStartRef.current) return;
+    const dx = Math.abs(event.clientX - touchStartRef.current.x);
+    const dy = Math.abs(event.clientY - touchStartRef.current.y);
+    if (dx > MOVE_TOLERANCE_PX || dy > MOVE_TOLERANCE_PX) {
+      clearLongPress();
+    }
+  };
+
+  const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === 'touch') clearLongPress();
+  };
+
+  const handlePointerCancel = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === 'touch') clearLongPress();
+  };
+
   return (
     <div role="treeitem" aria-expanded={isDir ? isExpanded : undefined} aria-selected={isSelected}>
       <div
@@ -94,11 +146,22 @@ export function FileTreeNode({
         } ${entry.binary && !canOpen ? 'opacity-50' : ''} ${
           isDropTarget ? 'bg-primary/15 ring-1 ring-primary/40' : ''
         } ${isDragSource ? 'opacity-50' : ''}`}
-        style={{ paddingLeft: depth * 16 + 8 }}
+        style={{ paddingLeft: depth * 16 + 8, WebkitTouchCallout: 'none' as const }}
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
         onKeyDown={handleKeyDown}
-        onContextMenu={(e) => onContextMenu(entry, e)}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        onContextMenu={(e) => {
+          if (longPressTriggeredRef.current) {
+            e.preventDefault();
+            longPressTriggeredRef.current = false;
+            return;
+          }
+          onContextMenu(entry, e);
+        }}
         onDragStart={(e) => onDragStart(entry, e)}
         onDragEnd={onDragEnd}
         onDragOver={isDir ? (e) => onDragOverDirectory(entry, e) : undefined}
@@ -160,6 +223,7 @@ export function FileTreeNode({
               loadingPaths={loadingPaths}
               onToggleDir={onToggleDir}
               onOpenFile={onOpenFile}
+              onTouchLongPress={onTouchLongPress}
               onSelect={onSelect}
               onContextMenu={onContextMenu}
               dragSourcePath={dragSourcePath}

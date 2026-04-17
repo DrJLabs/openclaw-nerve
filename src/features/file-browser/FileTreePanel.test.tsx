@@ -103,6 +103,7 @@ describe('FileTreePanel', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -202,6 +203,83 @@ describe('FileTreePanel', () => {
   });
 
   describe('context menu add to chat', () => {
+    it('opens the shared row menu on touch long press without triggering file open', async () => {
+      vi.useFakeTimers();
+
+      render(
+        <FileTreePanel
+          workspaceAgentId="agent-a"
+          onOpenFile={mockOnOpenFile}
+          onAddToChat={mockOnAddToChat}
+          addToChatEnabled={true}
+          onRemapOpenPaths={mockOnRemapOpenPaths}
+          onCloseOpenPaths={mockOnCloseOpenPaths}
+          collapsed={false}
+          onCollapseChange={vi.fn()}
+        />
+      );
+
+      const row = screen.getByTitle('package.json');
+      fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 24, clientY: 32 });
+      await act(async () => {
+        vi.advanceTimersByTime(500);
+      });
+
+      expect(screen.getByText('Add to chat')).toBeInTheDocument();
+      expect(mockOnOpenFile).not.toHaveBeenCalled();
+    });
+
+    it('cancels touch long press when the pointer moves beyond tolerance', () => {
+      vi.useFakeTimers();
+
+      render(
+        <FileTreePanel
+          workspaceAgentId="agent-a"
+          onOpenFile={mockOnOpenFile}
+          onAddToChat={mockOnAddToChat}
+          addToChatEnabled={true}
+          onRemapOpenPaths={mockOnRemapOpenPaths}
+          onCloseOpenPaths={mockOnCloseOpenPaths}
+          collapsed={false}
+          onCollapseChange={vi.fn()}
+        />
+      );
+
+      const row = screen.getByTitle('package.json');
+      fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 10, clientY: 10 });
+      fireEvent.pointerMove(row, { pointerType: 'touch', clientX: 40, clientY: 40 });
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      expect(screen.queryByText('Add to chat')).not.toBeInTheDocument();
+    });
+
+    it('does not open the menu from a mouse pointer long hold', () => {
+      vi.useFakeTimers();
+
+      render(
+        <FileTreePanel
+          workspaceAgentId="agent-a"
+          onOpenFile={mockOnOpenFile}
+          onAddToChat={mockOnAddToChat}
+          addToChatEnabled={true}
+          onRemapOpenPaths={mockOnRemapOpenPaths}
+          onCloseOpenPaths={mockOnCloseOpenPaths}
+          collapsed={false}
+          onCollapseChange={vi.fn()}
+        />
+      );
+
+      const row = screen.getByTitle('package.json');
+      fireEvent.pointerDown(row, { pointerType: 'mouse', clientX: 24, clientY: 32 });
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      expect(screen.queryByText('Add to chat')).not.toBeInTheDocument();
+    });
+
     it('renders menu actions from the shared action builder for files', async () => {
       render(
         <FileTreePanel

@@ -457,6 +457,18 @@ export function FileTreePanel({
     });
   }, [selectFile, workspaceAgentId]);
 
+  const openTouchContextMenu = useCallback((entry: TreeEntry, anchorRect: DOMRect) => {
+    selectFile(entry.path);
+    contextMenuSessionIdRef.current += 1;
+    setContextMenu({
+      agentId: workspaceAgentId,
+      sessionId: contextMenuSessionIdRef.current,
+      x: anchorRect.left + MENU_CURSOR_OFFSET,
+      y: anchorRect.top + MENU_ROW_TOP_OFFSET,
+      entry,
+    });
+  }, [selectFile, workspaceAgentId]);
+
   const startRename = useCallback((entry: TreeEntry) => {
     if (entry.path === '.trash') {
       showToastForAgent(workspaceAgentId, { type: 'error', message: 'Cannot rename .trash root' }, 3500);
@@ -776,6 +788,7 @@ export function FileTreePanel({
                 loadingPaths={loadingPaths}
                 onToggleDir={toggleDirectory}
                 onOpenFile={onOpenFile}
+                onTouchLongPress={openTouchContextMenu}
                 onSelect={selectFile}
                 onContextMenu={handleContextMenu}
                 dragSourcePath={visibleDragSource?.path || null}

@@ -21,7 +21,7 @@ export interface FileTreeMenuActionOptions {
 }
 
 function isTrashItemPath(filePath: string): boolean {
-  return filePath.startsWith('.trash/') && filePath !== '.trash';
+  return filePath.startsWith('.trash/');
 }
 
 export function buildFileTreeMenuActions(

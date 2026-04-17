@@ -24,6 +24,8 @@ const WIDTH_STORAGE_KEY = 'nerve-file-tree-width';
 const MENU_VIEWPORT_PADDING = 8;
 const MENU_CURSOR_OFFSET = 6;
 const MENU_ROW_TOP_OFFSET = 2;
+const TOUCH_MENU_OFFSET_X = 0;
+const TOUCH_MENU_OFFSET_Y = 0;
 const UNDO_TOAST_TTL_MS = 10_000;
 
 /** Load persisted file tree width from localStorage. */
@@ -489,8 +491,8 @@ export function FileTreePanel({
     setContextMenu({
       agentId: workspaceAgentId,
       sessionId: contextMenuSessionIdRef.current,
-      x: touchPoint.x,
-      y: touchPoint.y,
+      x: touchPoint.x + TOUCH_MENU_OFFSET_X,
+      y: touchPoint.y + TOUCH_MENU_OFFSET_Y,
       entry,
       source: 'touch',
       touchAnchorX: touchPoint.x,

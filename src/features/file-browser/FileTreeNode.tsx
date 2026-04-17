@@ -172,6 +172,8 @@ export function FileTreeNode({
         onPointerCancel={handlePointerCancel}
         onContextMenu={(e) => {
           if (longPressTriggeredRef.current) {
+            // Keep the flag set here so a follow-up synthetic click is still swallowed.
+            // The next pointerdown or the real click handler clears stale suppression.
             e.preventDefault();
             return;
           }

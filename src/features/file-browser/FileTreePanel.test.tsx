@@ -247,33 +247,49 @@ describe('FileTreePanel', () => {
         offsetLeft: 40,
         offsetTop: 80,
       };
+      const originalOffsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
       Object.defineProperty(window, 'visualViewport', {
         configurable: true,
         value: visualViewportMock,
       });
-
-      render(
-        <FileTreePanel
-          workspaceAgentId="agent-a"
-          onOpenFile={mockOnOpenFile}
-          onAddToChat={mockOnAddToChat}
-          addToChatEnabled={true}
-          onRemapOpenPaths={mockOnRemapOpenPaths}
-          onCloseOpenPaths={mockOnCloseOpenPaths}
-          collapsed={false}
-          onCollapseChange={vi.fn()}
-        />
-      );
-
-      const row = screen.getByTitle('package.json');
-      fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 210, clientY: 300, pointerId: 1 });
-      await act(async () => {
-        vi.advanceTimersByTime(500);
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+        configurable: true,
+        get() {
+          return this.classList.contains('shell-panel') ? 40 : 0;
+        },
       });
-      fireEvent.pointerUp(row, { pointerType: 'touch', clientX: 210, clientY: 300, pointerId: 1 });
 
-      const menu = screen.getByText('Add to chat').closest('.shell-panel') as HTMLElement;
-      expect(menu).toHaveStyle({ left: '210px', top: '300px' });
+      try {
+        render(
+          <FileTreePanel
+            workspaceAgentId="agent-a"
+            onOpenFile={mockOnOpenFile}
+            onAddToChat={mockOnAddToChat}
+            addToChatEnabled={true}
+            onRemapOpenPaths={mockOnRemapOpenPaths}
+            onCloseOpenPaths={mockOnCloseOpenPaths}
+            collapsed={false}
+            onCollapseChange={vi.fn()}
+          />
+        );
+
+        const row = screen.getByTitle('package.json');
+        fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 210, clientY: 300, pointerId: 1 });
+        await act(async () => {
+          vi.advanceTimersByTime(500);
+        });
+        fireEvent.pointerUp(row, { pointerType: 'touch', clientX: 210, clientY: 300, pointerId: 1 });
+
+        const menu = screen.getByText('Add to chat').closest('.shell-panel') as HTMLElement;
+        expect(menu).toHaveStyle({ left: '210px', top: '260px' });
+      } finally {
+        if (originalOffsetHeight) {
+          Object.defineProperty(HTMLElement.prototype, 'offsetHeight', originalOffsetHeight);
+        } else {
+          // @ts-expect-error test cleanup for ad-hoc property definition
+          delete HTMLElement.prototype.offsetHeight;
+        }
+      }
     });
 
     it('keeps a touch-opened menu visible when the browser emits a synthetic mousedown after release', async () => {

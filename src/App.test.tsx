@@ -281,12 +281,21 @@ vi.mock('@/features/connect/ConnectDialog', () => ({
 }));
 
 vi.mock('@/components/TopBar', () => ({
-  TopBar: ({ showKanbanView, viewMode }: { showKanbanView?: boolean; viewMode?: string }) => {
+  TopBar: ({
+    showKanbanView,
+    viewMode,
+    onOpenCommandPalette,
+  }: {
+    showKanbanView?: boolean;
+    viewMode?: string;
+    onOpenCommandPalette?: () => void;
+  }) => {
     topBarRenderSnapshots.push({ showKanbanView, viewMode });
     return (
       <div>
         <div data-testid="topbar-show-kanban">{String(showKanbanView ?? true)}</div>
         <div data-testid="topbar-view-mode">{viewMode ?? 'chat'}</div>
+        <button type="button" onClick={() => onOpenCommandPalette?.()}>Open Commands From TopBar</button>
       </div>
     );
   },
@@ -333,7 +342,9 @@ vi.mock('@/features/settings/SettingsDrawer', () => ({
 }));
 
 vi.mock('@/features/command-palette/CommandPalette', () => ({
-  CommandPalette: () => null,
+  CommandPalette: ({ open }: { open: boolean }) => (
+    <div data-testid="command-palette-state">{open ? 'open' : 'closed'}</div>
+  ),
 }));
 
 vi.mock('@/features/sessions/SessionList', () => ({
@@ -846,5 +857,42 @@ describe('App kanban visibility gating', () => {
     render(<App />);
 
     expect(screen.getByTestId('topbar-view-mode')).toHaveTextContent('chat');
+  });
+
+  it('passes the top-bar command palette trigger through App state', () => {
+    render(<App />);
+
+    expect(screen.getByTestId('command-palette-state')).toHaveTextContent('closed');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open Commands From TopBar' }));
+
+    expect(screen.getByTestId('command-palette-state')).toHaveTextContent('open');
+  });
+
+  it('shows a mobile-only commands FAB above the composer in compact layout', () => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: query === '(max-width: 900px)',
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+
+    render(<App />);
+
+    expect(screen.getByTestId('command-palette-state')).toHaveTextContent('closed');
+
+    const floatingButton = screen.getAllByRole('button', { name: /open command palette/i }).at(-1)!;
+    expect(floatingButton.className).toContain('bottom-40');
+
+    fireEvent.click(floatingButton);
+
+    expect(screen.getByTestId('command-palette-state')).toHaveTextContent('open');
   });
 });

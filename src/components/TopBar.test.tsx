@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { TopBar } from './TopBar';
 
@@ -36,5 +37,17 @@ describe('TopBar', () => {
 
     expect(screen.queryByRole('button', { name: /switch to tasks view/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /switch to chat view/i })).toBeInTheDocument();
+  });
+
+  it('opens the command palette from the visible Commands trigger', async () => {
+    const user = userEvent.setup();
+    const onOpenCommandPalette = vi.fn();
+
+    renderTopBar({ onOpenCommandPalette });
+
+    await user.click(screen.getByRole('button', { name: /open command palette/i }));
+
+    expect(onOpenCommandPalette).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: /open command palette/i })).toHaveTextContent(/commands/i);
   });
 });

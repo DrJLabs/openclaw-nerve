@@ -921,7 +921,15 @@ export default function App({ onLogout }: AppProps) {
   });
 
   return (
-    <div className="scan-lines relative h-screen flex flex-col overflow-hidden" data-booted={booted}>
+    <div
+      className="scan-lines relative h-screen flex flex-col overflow-hidden"
+      data-booted={booted}
+      data-testid="app-shell"
+      onPointerDownCapture={compactFileBrowserSwipe.bind.onPointerDown}
+      onPointerMoveCapture={compactFileBrowserSwipe.bind.onPointerMove}
+      onPointerUpCapture={compactFileBrowserSwipe.bind.onPointerUp}
+      onPointerCancelCapture={compactFileBrowserSwipe.bind.onPointerCancel}
+    >
       {/* Skip to main content link for keyboard navigation */}
       <a 
         href="#main-chat" 
@@ -1056,19 +1064,6 @@ export default function App({ onLogout }: AppProps) {
               />
             </PanelErrorBoundary>
           </div>
-        )}
-
-        {compactFileBrowserSwipeEnabled && (
-          <div
-            data-testid="file-browser-swipe-zone"
-            aria-hidden="true"
-            className="fixed inset-y-0 left-0 z-20 hidden w-6 max-[900px]:block"
-            style={{ touchAction: 'pan-y' }}
-            onPointerDown={compactFileBrowserSwipe.bind.onPointerDown}
-            onPointerMove={compactFileBrowserSwipe.bind.onPointerMove}
-            onPointerUp={compactFileBrowserSwipe.bind.onPointerUp}
-            onPointerCancel={compactFileBrowserSwipe.bind.onPointerCancel}
-          />
         )}
 
         {showCompactFileBrowser && (

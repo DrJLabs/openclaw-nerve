@@ -88,12 +88,28 @@ export function inferParentSessionKey(sessionKey: string): string | null {
   return null;
 }
 
+export function getExplicitParentCandidates(session: Session | undefined): string[] {
+  const candidates: string[] = [];
+
+  const parentSessionKey = typeof session?.parentSessionKey === 'string'
+    ? session.parentSessionKey.trim()
+    : '';
+  if (parentSessionKey) candidates.push(parentSessionKey);
+
+  const parentId = typeof session?.parentId === 'string'
+    ? session.parentId.trim()
+    : '';
+  if (parentId && parentId !== parentSessionKey) candidates.push(parentId);
+
+  return candidates;
+}
+
 export function resolveParentSessionKey(session: Session, knownKeys?: Set<string>): string | null {
   const sessionKey = getSessionKey(session);
   if (!sessionKey) return null;
 
-  if (session.parentId) {
-    if (!knownKeys || knownKeys.has(session.parentId)) return session.parentId;
+  for (const explicitParent of getExplicitParentCandidates(session)) {
+    if (!knownKeys || knownKeys.has(explicitParent)) return explicitParent;
   }
 
   const inferred = inferParentSessionKey(sessionKey);

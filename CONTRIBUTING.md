@@ -6,6 +6,7 @@ Thanks for wanting to help! This guide covers everything you need to start contr
 
 - [Development Setup](#development-setup)
 - [Project Structure](#project-structure)
+- [Maintainer Fork Workflow](#maintainer-fork-workflow)
 - [Adding a Feature](#adding-a-feature)
 - [Testing](#testing)
 - [Linting](#linting)
@@ -117,6 +118,21 @@ openclaw-nerve/
 - **Tests are usually nearby** the code they cover, especially for hooks, routes, and utilities.
 - **Cross-feature imports exist**, but keep them narrow and intentional. Reuse small helpers, avoid circular dependencies, and do not spread one-off shortcuts across the app.
 - **Server routes** live in `server/routes/` and are mounted in `server/app.ts`. Shared logic belongs in `server/lib/`, `server/services/`, or `server/middleware/`.
+
+## Maintainer Fork Workflow
+
+If you maintain a long-lived local `dev` branch that may drift from upstream `master`, use the dedicated runbook in [`docs/CONTRIBUTION-WORKFLOW.md`](./docs/CONTRIBUTION-WORKFLOW.md).
+
+Short version:
+
+1. Implement and manually test on `dev`.
+2. Refresh local `master` from upstream.
+3. Create a fresh master-based branch, ideally in a worktree.
+4. Port only the intended fix into that branch.
+5. Run the full contributor verification suite.
+6. Push to `fork` and open a draft PR against `fork/master` for bot review.
+7. Squash/rebase if the branch has more than 2 meaningful commits.
+8. Merge into `fork/master`, then open the upstream PR from `DrJLabs:master` to `daggerhashimoto:master`.
 
 ## Adding a Feature
 

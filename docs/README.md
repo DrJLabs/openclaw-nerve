@@ -6,6 +6,7 @@ Start here when you need setup, operations, or contributor guidance.
 
 - [Project README](../README.md), product overview and quick start
 - [Contributing](../CONTRIBUTING.md), local development, tests, and PR expectations
+- [Contribution Workflow](./CONTRIBUTION-WORKFLOW.md), maintained fork workflow for `dev` -> fresh `master` branch -> `fork/master` review -> upstream PR
 - [Changelog](../CHANGELOG.md), release notes
 
 ## Core docs
